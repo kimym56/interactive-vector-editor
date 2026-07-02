@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { type PointerEvent, useMemo, useState } from "react";
+import { type PointerEvent, useState } from "react";
 import { EditorCanvas } from "./editor/EditorCanvas";
 import { EditorToolbar } from "./editor/EditorToolbar";
 import {
@@ -15,6 +15,7 @@ import {
   createInitialEditorState,
   createPoint,
   deleteObjectAt,
+  getCanCompletePolygon,
   hitTest,
   moveObject,
   redo,
@@ -32,11 +33,12 @@ type DragState = {
 const appSubtitle =
   "Create points and polygons, move and delete objects, and step through your full edit history with undo and redo.";
 
-export default function App() {
+const App = () => {
   const [state, setState] = useState<EditorState>(() => createInitialEditorState());
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [draftCursor, setDraftCursor] = useState<Point | null>(null);
 
-  const previewObjects = useMemo(() => getPreviewObjects(state.objects, drag), [drag, state.objects]);
+  const previewObjects = getPreviewObjects(state.objects, drag);
 
   function getDocumentPoint(event: PointerEvent<SVGSVGElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -45,6 +47,7 @@ export default function App() {
 
   function handleModeChange(mode: EditorMode) {
     setDrag(null);
+    setDraftCursor(null);
     setState((current) => changeMode(current, mode));
   }
 
@@ -57,6 +60,7 @@ export default function App() {
     }
 
     if (state.mode === "polygon") {
+      setDraftCursor(point);
       setState((current) => startPolygonVertex(current, point));
       return;
     }
@@ -94,6 +98,11 @@ export default function App() {
 
     if (drag) {
       setDrag((current) => (current ? { ...current, current: point } : current));
+      return;
+    }
+
+    if (state.mode === "polygon" && state.draftPolygon.length > 0) {
+      setDraftCursor(point);
       return;
     }
 
@@ -142,6 +151,10 @@ export default function App() {
   }
 
   function handleCanvasPointerLeave() {
+    if (state.mode === "polygon") {
+      setDraftCursor(null);
+    }
+
     if (!drag && state.hoveredObjectId) {
       setState((current) => ({ ...current, hoveredObjectId: null }));
     }
@@ -149,19 +162,23 @@ export default function App() {
 
   function handleUndo() {
     setDrag(null);
+    setDraftCursor(null);
     setState((current) => undo(current));
   }
 
   function handleRedo() {
     setDrag(null);
+    setDraftCursor(null);
     setState((current) => redo(current));
   }
 
   function handleComplete() {
+    setDraftCursor(null);
     setState((current) => completePolygon(current));
   }
 
   function handleCancelDraft() {
+    setDraftCursor(null);
     setState((current) => cancelDraft(current));
   }
 
@@ -175,7 +192,11 @@ export default function App() {
       </Stack>
 
       <EditorToolbar
-        state={state}
+        mode={state.mode}
+        draftVertexCount={state.draftPolygon.length}
+        canCompletePolygon={getCanCompletePolygon(state)}
+        canUndo={state.undoStack.length > 0}
+        canRedo={state.redoStack.length > 0}
         onModeChange={handleModeChange}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -188,6 +209,7 @@ export default function App() {
         isDragging={Boolean(drag)}
         objects={previewObjects}
         draftPolygon={state.draftPolygon}
+        draftCursor={draftCursor}
         selectedObjectId={state.selectedObjectId}
         activeDragObjectId={state.activeDragObjectId}
         hoveredObjectId={state.hoveredObjectId}
@@ -199,7 +221,9 @@ export default function App() {
       />
     </AppShell>
   );
-}
+};
+
+export default App;
 
 function getPreviewObjects(objects: GeometryObject[], drag: DragState | null): GeometryObject[] {
   if (!drag) {

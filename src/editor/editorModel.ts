@@ -238,13 +238,6 @@ export function clientPointToDocumentPoint(rect: ClientRectLike, clientPoint: Po
   };
 }
 
-export function findObject(objects: GeometryObject[], objectId: string | null): GeometryObject | null {
-  if (!objectId) {
-    return null;
-  }
-  return objects.find((object) => object.id === objectId) ?? null;
-}
-
 function pushHistory(state: EditorState, action: HistoryAction): EditorState {
   return {
     ...state,

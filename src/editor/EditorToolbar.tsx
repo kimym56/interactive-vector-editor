@@ -18,8 +18,7 @@ import {
 } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
 import { toolbarControlHeight } from "../designSystem";
-import type { EditorMode, EditorState } from "./editorModel";
-import { getCanCompletePolygon } from "./editorModel";
+import type { EditorMode } from "./editorModel";
 
 type ToolDefinition = {
   mode: EditorMode;
@@ -29,7 +28,11 @@ type ToolDefinition = {
 };
 
 type EditorToolbarProps = {
-  state: EditorState;
+  mode: EditorMode;
+  draftVertexCount: number;
+  canCompletePolygon: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
   onModeChange: (mode: EditorMode) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -44,17 +47,20 @@ const tools: ToolDefinition[] = [
   { mode: "delete", label: "Delete", hint: "Click an object to remove it", Icon: DeleteOutlineRounded }
 ];
 
-export function EditorToolbar({
-  state,
+export const EditorToolbar = ({
+  mode,
+  draftVertexCount,
+  canCompletePolygon,
+  canUndo,
+  canRedo,
   onModeChange,
   onUndo,
   onRedo,
   onComplete,
   onCancelDraft
-}: EditorToolbarProps) {
-  const canComplete = getCanCompletePolygon(state);
-  const canCancelDraft = state.mode === "polygon" && state.draftPolygon.length > 0;
-  const activeTool = tools.find((tool) => tool.mode === state.mode) ?? tools[0];
+}: EditorToolbarProps) => {
+  const isDrafting = mode === "polygon" && draftVertexCount > 0;
+  const activeTool = tools.find((tool) => tool.mode === mode) ?? tools[0];
 
   function handleModeChange(mode: EditorMode | null) {
     if (mode) {
@@ -67,7 +73,7 @@ export function EditorToolbar({
       <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
         <ToolGroup
           exclusive
-          value={state.mode}
+          value={mode}
           aria-label="Drawing tools"
           onChange={(_, mode) => handleModeChange(mode)}
         >
@@ -86,7 +92,7 @@ export function EditorToolbar({
             color="secondary"
             startIcon={<UndoRounded />}
             onClick={onUndo}
-            disabled={state.undoStack.length === 0}
+            disabled={!canUndo}
             aria-label="Undo"
           >
             Undo
@@ -97,73 +103,49 @@ export function EditorToolbar({
             color="secondary"
             startIcon={<RedoRounded />}
             onClick={onRedo}
-            disabled={state.redoStack.length === 0}
+            disabled={!canRedo}
             aria-label="Redo"
           >
             Redo
           </Button>
         </ButtonGroupSurface>
 
-        {canCancelDraft && (
+        {isDrafting && (
           <DraftControls>
             <Chip
               size="small"
-              label={`${state.draftPolygon.length} ${state.draftPolygon.length === 1 ? "vertex" : "vertices"}`}
+              label={`${draftVertexCount} ${draftVertexCount === 1 ? "vertex" : "vertices"}`}
             />
-            <PolygonActionButtons
-              canComplete={canComplete}
-              canCancelDraft={canCancelDraft}
-              onComplete={onComplete}
-              onCancelDraft={onCancelDraft}
-            />
+            <Button
+              type="button"
+              variant="contained"
+              startIcon={<CheckRounded />}
+              onClick={onComplete}
+              disabled={!canCompletePolygon}
+              aria-label="Complete"
+            >
+              Complete
+            </Button>
+            <Button
+              type="button"
+              variant="text"
+              color="secondary"
+              startIcon={<CloseRounded />}
+              onClick={onCancelDraft}
+              aria-label="Cancel"
+            >
+              Cancel
+            </Button>
           </DraftControls>
         )}
       </Stack>
 
       <Typography color="text.secondary" fontSize={14} aria-live="polite">
-        {canCancelDraft ? "Keep clicking to add vertices." : activeTool.hint}
+        {isDrafting ? "Keep clicking to add vertices." : activeTool.hint}
       </Typography>
     </ToolbarSurface>
   );
-}
-
-function PolygonActionButtons({
-  canComplete,
-  canCancelDraft,
-  onComplete,
-  onCancelDraft
-}: {
-  canComplete: boolean;
-  canCancelDraft: boolean;
-  onComplete: () => void;
-  onCancelDraft: () => void;
-}) {
-  return (
-    <>
-      <Button
-        type="button"
-        variant="contained"
-        startIcon={<CheckRounded />}
-        onClick={onComplete}
-        disabled={!canComplete}
-        aria-label="Complete"
-      >
-        Complete
-      </Button>
-      <Button
-        type="button"
-        variant="text"
-        color="secondary"
-        startIcon={<CloseRounded />}
-        onClick={onCancelDraft}
-        disabled={!canCancelDraft}
-        aria-label="Cancel"
-      >
-        Cancel
-      </Button>
-    </>
-  );
-}
+};
 
 const ToolbarSurface = styled(Box)(({ theme }) => ({
   display: "flex",

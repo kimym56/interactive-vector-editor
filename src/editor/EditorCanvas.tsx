@@ -14,6 +14,7 @@ type EditorCanvasProps = {
   isDragging: boolean;
   objects: GeometryObject[];
   draftPolygon: Point[];
+  draftCursor: Point | null;
   selectedObjectId: string | null;
   activeDragObjectId: string | null;
   hoveredObjectId: string | null;
@@ -24,11 +25,12 @@ type EditorCanvasProps = {
   onPointerLeave: PointerEventHandler<SVGSVGElement>;
 };
 
-export function EditorCanvas({
+export const EditorCanvas = ({
   mode,
   isDragging,
   objects,
   draftPolygon,
+  draftCursor,
   selectedObjectId,
   activeDragObjectId,
   hoveredObjectId,
@@ -37,44 +39,42 @@ export function EditorCanvas({
   onPointerUp,
   onPointerCancel,
   onPointerLeave
-}: EditorCanvasProps) {
+}: EditorCanvasProps) => {
   return (
-    <Workspace>
-      <CanvasPanel aria-label="Canvas workspace" data-testid="canvas-panel">
-        <CanvasSvg
-          className={`editor-canvas--${mode}${isDragging ? " is-dragging" : ""}`}
-          role="img"
-          aria-label="Editable vector canvas"
-          viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
-          onPointerLeave={onPointerLeave}
-        >
-          <defs>
-            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="rgba(23, 23, 23, 0.12)" />
-            </pattern>
-          </defs>
-          <rect className="canvas-fill" x="0" y="0" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
-          <rect className="canvas-grid" x="0" y="0" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="url(#grid)" />
-          {objects.map((object) => (
-            <Shape
-              key={object.id}
-              object={object}
-              isActive={object.id === selectedObjectId || object.id === hoveredObjectId}
-              isDragging={object.id === activeDragObjectId}
-            />
-          ))}
-          {draftPolygon.length > 0 && <DraftPolygon vertices={draftPolygon} />}
-        </CanvasSvg>
-      </CanvasPanel>
-    </Workspace>
+    <CanvasPanel aria-label="Canvas workspace" data-testid="canvas-panel">
+      <CanvasSvg
+        className={`editor-canvas--${mode}${isDragging ? " is-dragging" : ""}`}
+        role="img"
+        aria-label="Editable vector canvas"
+        viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={onPointerLeave}
+      >
+        <defs>
+          <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="rgba(23, 23, 23, 0.12)" />
+          </pattern>
+        </defs>
+        <rect className="canvas-fill" x="0" y="0" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
+        <rect className="canvas-grid" x="0" y="0" width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="url(#grid)" />
+        {objects.map((object) => (
+          <Shape
+            key={object.id}
+            object={object}
+            isActive={object.id === selectedObjectId || object.id === hoveredObjectId}
+            isDragging={object.id === activeDragObjectId}
+          />
+        ))}
+        {draftPolygon.length > 0 && <DraftPolygon vertices={draftPolygon} cursor={draftCursor} />}
+      </CanvasSvg>
+    </CanvasPanel>
   );
-}
+};
 
-function Shape({ object, isActive, isDragging }: { object: GeometryObject; isActive: boolean; isDragging: boolean }) {
+const Shape = ({ object, isActive, isDragging }: { object: GeometryObject; isActive: boolean; isDragging: boolean }) => {
   if (object.type === "point") {
     return (
       <g className={shapeClassName("point-shape", isActive, isDragging)}>
@@ -94,18 +94,20 @@ function Shape({ object, isActive, isDragging }: { object: GeometryObject; isAct
       ))}
     </g>
   );
-}
+};
 
-function DraftPolygon({ vertices }: { vertices: Point[] }) {
+const DraftPolygon = ({ vertices, cursor }: { vertices: Point[]; cursor: Point | null }) => {
+  const previewVertices = cursor ? [...vertices, cursor] : vertices;
+
   return (
     <g className="draft-shape">
-      <polyline points={toSvgPoints(vertices)} />
+      <polyline points={toSvgPoints(previewVertices)} />
       {vertices.map((vertex, index) => (
         <circle key={`${vertex.x}-${vertex.y}-${index}`} cx={vertex.x} cy={vertex.y} r="6" />
       ))}
     </g>
   );
-}
+};
 
 function toSvgPoints(points: Point[]): string {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
@@ -114,11 +116,6 @@ function toSvgPoints(points: Point[]): string {
 function shapeClassName(base: string, isActive: boolean, isDragging: boolean): string {
   return [base, isActive ? "is-active" : "", isDragging ? "is-dragging" : ""].filter(Boolean).join(" ");
 }
-
-const Workspace = styled(Box)(() => ({
-  display: "block",
-  minWidth: 0
-}));
 
 const CanvasPanel = styled(Box)(() => ({
   width: "100%",

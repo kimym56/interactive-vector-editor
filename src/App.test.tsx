@@ -30,6 +30,10 @@ function getDraftVertexCount(canvas: Element) {
   return canvas.querySelectorAll(".draft-shape circle").length;
 }
 
+function getDraftPolylinePoints(canvas: Element) {
+  return canvas.querySelector(".draft-shape polyline")?.getAttribute("points");
+}
+
 function getPointPosition(canvas: Element) {
   const point = canvas.querySelector(".point-core");
 
@@ -137,6 +141,19 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(getPointCount(canvas)).toBe(0);
+  });
+
+  it("previews a polygon draft edge from the first vertex to the cursor", () => {
+    render(<App />);
+
+    const canvas = screen.getByLabelText("Editable vector canvas");
+    mockCanvasRect(canvas);
+
+    fireEvent.click(screen.getByRole("button", { name: "Polygon" }));
+    fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
+    fireEvent.pointerMove(canvas, { clientX: 260, clientY: 240 });
+
+    expect(getDraftPolylinePoints(canvas)).toBe("200,200 260,240");
   });
 
   it("presents the Material UI editor chrome with contextual drafting state", () => {
