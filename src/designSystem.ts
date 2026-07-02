@@ -1,5 +1,7 @@
 import { createTheme } from "@mui/material/styles";
 
+export const toolbarControlHeight = 36;
+
 export const editorTheme = createTheme({
   palette: {
     mode: "light",
@@ -54,7 +56,8 @@ export const editorTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          minHeight: 34
+          height: toolbarControlHeight,
+          minHeight: toolbarControlHeight
         }
       }
     },
@@ -63,7 +66,8 @@ export const editorTheme = createTheme({
         root: {
           borderRadius: 8,
           border: 0,
-          minHeight: 32,
+          height: toolbarControlHeight,
+          minHeight: toolbarControlHeight,
           paddingInline: 10,
           textTransform: "none",
           fontWeight: 550,

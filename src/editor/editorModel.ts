@@ -1,5 +1,5 @@
-export const CANVAS_WIDTH = 1000;
-export const CANVAS_HEIGHT = 640;
+export const CANVAS_WIDTH = 900;
+export const CANVAS_HEIGHT = 560;
 export const POINT_HIT_RADIUS = 15;
 export const POLYGON_OUTLINE_HIT_RADIUS = 10;
 

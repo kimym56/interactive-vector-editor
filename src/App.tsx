@@ -11,8 +11,6 @@ import {
   Box,
   Button,
   Chip,
-  Divider,
-  Paper,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -20,6 +18,7 @@ import {
 } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
 import { PointerEvent, useMemo, useState } from "react";
+import { toolbarControlHeight } from "./designSystem";
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -62,12 +61,8 @@ const tools: ToolDefinition[] = [
   { mode: "delete", label: "Delete", hint: "Click an object to remove it", Icon: DeleteOutlineRounded }
 ];
 
-const modeCopy: Record<EditorMode, string> = {
-  point: "Point placement",
-  polygon: "Polygon drafting",
-  move: "Object movement",
-  delete: "Object deletion"
-};
+const appSubtitle =
+  "Create points and polygons, move and delete objects, and step through your full edit history with undo and redo.";
 
 export default function App() {
   const [state, setState] = useState<EditorState>(() => createInitialEditorState());
@@ -76,8 +71,6 @@ export default function App() {
   const canComplete = getCanCompletePolygon(state);
   const canCancelDraft = state.mode === "polygon" && state.draftPolygon.length > 0;
   const activeTool = tools.find((tool) => tool.mode === state.mode) ?? tools[0];
-  const pointCount = state.objects.filter((object) => object.type === "point").length;
-  const polygonCount = state.objects.filter((object) => object.type === "polygon").length;
   const previewObjects = useMemo(() => {
     if (!drag) {
       return state.objects;
@@ -206,11 +199,11 @@ export default function App() {
       <Stack component="header" spacing={0.5}>
         <Typography variant="h1">Interactive Vector Editor</Typography>
         <Typography color="text.secondary" fontSize={14}>
-          {modeCopy[state.mode]}
+          {appSubtitle}
         </Typography>
       </Stack>
 
-      <ToolbarSurface>
+      <ToolbarSurface data-testid="toolbar-surface">
         <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
           <ToolGroup
             exclusive
@@ -315,7 +308,7 @@ export default function App() {
       </ToolbarSurface>
 
       <Workspace>
-        <CanvasPanel aria-label="Canvas workspace">
+        <CanvasPanel aria-label="Canvas workspace" data-testid="canvas-panel">
           <EditorCanvas
             className={`editor-canvas--${state.mode}${drag ? " is-dragging" : ""}`}
             role="img"
@@ -345,48 +338,8 @@ export default function App() {
             {state.draftPolygon.length > 0 && <DraftPolygon vertices={state.draftPolygon} />}
           </EditorCanvas>
         </CanvasPanel>
-
-        <Inspector component="aside" aria-label="Document inspector">
-          <PanelSection>
-            <Typography variant="h2">Document</Typography>
-            <MetricsGrid>
-              <Metric label="Objects" value={`${state.objects.length} ${state.objects.length === 1 ? "object" : "objects"}`} />
-              <Metric label="Points" value={String(pointCount)} />
-              <Metric label="Polygons" value={String(polygonCount)} />
-              <Metric label="Draft" value={`${state.draftPolygon.length} draft`} />
-              <Metric label="Undo" value={String(state.undoStack.length)} />
-              <Metric label="Redo" value={String(state.redoStack.length)} />
-            </MetricsGrid>
-          </PanelSection>
-
-          <Divider />
-
-          <PanelSection>
-            <Typography variant="h2">Objects</Typography>
-            <Stack spacing={1}>
-              {state.objects.length === 0 ? (
-                <Typography color="text.secondary" fontSize={14}>
-                  No objects
-                </Typography>
-              ) : (
-                state.objects.map((object, index) => (
-                  <ObjectRow
-                    key={object.id}
-                    object={object}
-                    index={index}
-                    isActive={object.id === state.selectedObjectId || object.id === state.hoveredObjectId}
-                  />
-                ))
-              )}
-            </Stack>
-          </PanelSection>
-        </Inspector>
       </Workspace>
 
-      <Stack direction="row" flexWrap="wrap" gap={3} color="text.secondary" fontSize={14}>
-        <span>{pointCount} points</span>
-        <span>{polygonCount} polygons</span>
-      </Stack>
     </AppShell>
   );
 }
@@ -422,42 +375,6 @@ function DraftPolygon({ vertices }: { vertices: Point[] }) {
         <circle key={`${vertex.x}-${vertex.y}-${index}`} cx={vertex.x} cy={vertex.y} r="6" />
       ))}
     </g>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <MetricTile>
-      <Typography component="span" color="text.secondary" fontSize={12}>
-        {label}
-      </Typography>
-      <Typography component="strong" fontSize={15} fontWeight={650}>
-        {value}
-      </Typography>
-    </MetricTile>
-  );
-}
-
-function ObjectRow({ object, index, isActive }: { object: GeometryObject; index: number; isActive: boolean }) {
-  const detail =
-    object.type === "point"
-      ? `${Math.round(object.position.x)}, ${Math.round(object.position.y)}`
-      : `${object.vertices.length} vertices`;
-
-  return (
-    <ObjectTile data-active={isActive ? "true" : "false"}>
-      <Typography component="span" color="text.secondary" fontSize={13}>
-        {index + 1}
-      </Typography>
-      <Box>
-        <Typography fontSize={14} fontWeight={650}>
-          {object.type === "point" ? "Point" : "Polygon"}
-        </Typography>
-        <Typography color="text.secondary" fontSize={12}>
-          {detail}
-        </Typography>
-      </Box>
-    </ObjectTile>
   );
 }
 
@@ -497,22 +414,19 @@ const AppShell = styled(Box)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   gap: theme.spacing(2.5),
-  maxWidth: 1240,
+  maxWidth: 1024,
   margin: "0 auto",
-  padding: theme.spacing(5, 3),
+  padding: theme.spacing(5, 2),
   [theme.breakpoints.down("sm")]: {
     padding: theme.spacing(3, 2)
   }
 }));
 
-const ToolbarSurface = styled(Paper)(({ theme }) => ({
+const ToolbarSurface = styled(Box)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   gap: theme.spacing(2),
-  padding: theme.spacing(1.25),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper
+  padding: theme.spacing(1.25, 0)
 }));
 
 const ToolGroup = styled(ToggleButtonGroup)(({ theme }) => ({
@@ -546,7 +460,7 @@ const DraftControls = styled(ButtonGroupSurface)(({ theme }) => ({
   borderColor: alpha(theme.palette.primary.main, 0.28),
   backgroundColor: alpha(theme.palette.primary.main, 0.04),
   "& .MuiChip-root": {
-    height: 28,
+    height: toolbarControlHeight,
     borderRadius: theme.shape.borderRadius,
     backgroundColor: alpha(theme.palette.primary.main, 0.08),
     color: theme.palette.text.secondary
@@ -554,30 +468,22 @@ const DraftControls = styled(ButtonGroupSurface)(({ theme }) => ({
 }));
 
 const Workspace = styled(Box)(({ theme }) => ({
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) 280px",
-  gap: theme.spacing(2.5),
-  alignItems: "stretch",
-  [theme.breakpoints.down("md")]: {
-    gridTemplateColumns: "1fr"
-  }
+  display: "block",
+  minWidth: 0
 }));
 
-const CanvasPanel = styled(Paper)(({ theme }) => ({
+const CanvasPanel = styled(Box)(({ theme }) => ({
+  width: "100%",
   minWidth: 0,
   overflow: "auto",
-  padding: theme.spacing(2),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper
+  padding: 0
 }));
 
 const EditorCanvas = styled("svg")(({ theme }) => ({
   display: "block",
-  width: "100%",
-  aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
-  minWidth: 0,
-  maxHeight: "calc(100vh - 270px)",
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+  flexShrink: 0,
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: theme.shape.borderRadius,
   backgroundColor: theme.palette.background.paper,
@@ -653,55 +559,5 @@ const EditorCanvas = styled("svg")(({ theme }) => ({
     fill: theme.palette.primary.main,
     stroke: theme.palette.background.paper,
     strokeWidth: 2
-  }
-}));
-
-const Inspector = styled(Box)(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  gap: theme.spacing(2),
-  padding: theme.spacing(2),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper
-}));
-
-const PanelSection = styled(Box)(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  gap: theme.spacing(1.5)
-}));
-
-const MetricsGrid = styled(Box)(({ theme }) => ({
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: theme.spacing(1)
-}));
-
-const MetricTile = styled(Box)(({ theme }) => ({
-  minHeight: 58,
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "center",
-  gap: 2,
-  padding: theme.spacing(1),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: "#fafafa"
-}));
-
-const ObjectTile = styled(Box)(({ theme }) => ({
-  display: "grid",
-  gridTemplateColumns: "24px 1fr",
-  gap: theme.spacing(1),
-  alignItems: "center",
-  minHeight: 54,
-  padding: theme.spacing(1),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: "#fafafa",
-  '&[data-active="true"]': {
-    borderColor: alpha(theme.palette.primary.main, 0.45),
-    backgroundColor: alpha(theme.palette.primary.main, 0.04)
   }
 }));
