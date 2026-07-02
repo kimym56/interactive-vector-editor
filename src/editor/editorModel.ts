@@ -297,7 +297,7 @@ function applyRedoAction(state: EditorState, action: HistoryAction): EditorState
   }
 }
 
-function translateObject(object: GeometryObject, delta: Point): GeometryObject {
+export function translateObject(object: GeometryObject, delta: Point): GeometryObject {
   if (object.type === "point") {
     return {
       ...object,

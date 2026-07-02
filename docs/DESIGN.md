@@ -2,7 +2,7 @@
 
 This document describes the design system for the Interactive Vector Editor.
 
-The reference system is based on Tailwind CSS v4, shadcn/ui tokens, OKLCH color values, and semantic utility classes. The current project implementation stays intentionally small: React, TypeScript, Vite, SVG, native buttons, lucide icons, and custom CSS in `src/App.css`.
+The reference system is based on Tailwind CSS v4, shadcn/ui tokens, OKLCH color values, and semantic utility classes. The current project implementation stays intentionally small: React, TypeScript, Vite, SVG, Material UI, Emotion styling, and the shared MUI theme in `src/designSystem.ts`.
 
 The design direction below translates the reference system into the current codebase while keeping a clean migration path to Tailwind/shadcn later.
 
@@ -24,13 +24,13 @@ Design priorities:
 
 The reference system uses semantic tokens, not literal color utilities. Tailwind/shadcn implementations should define raw OKLCH variables in `:root` and `.dark`, then expose them through `@theme inline` as `--color-*` aliases.
 
-The current implementation mirrors that idea with CSS custom properties in `src/App.css`.
+The current implementation mirrors that idea with a compact Material UI theme in `src/designSystem.ts`.
 
 Current rules:
 
-- Semantic CSS variables are the source of truth.
-- Components consume variables such as `--color-surface`, `--color-primary`, and `--color-border`.
-- Literal colors are acceptable only for one-off derived states such as translucent SVG grid lines or shadows.
+- The Material UI theme is the source of truth for app chrome.
+- Components consume `theme.palette`, `theme.shape`, `theme.typography`, and shared constants such as `toolbarControlHeight`.
+- Literal colors are acceptable only for one-off SVG-derived states such as translucent grid dots.
 - The app shell should stay mostly monochrome; editor geometry may use a small set of feature-specific colors.
 
 ### Theming Model
@@ -55,42 +55,39 @@ The reference palette is intentionally monochrome, with a single non-neutral des
 
 These are the tokens to preserve if the app migrates to Tailwind/shadcn.
 
-| Semantic token | Reference light | Reference dark | Current CSS variable | Usage |
+| Semantic token | Reference light | Reference dark | Current MUI theme value | Usage |
 | --- | --- | --- | --- | --- |
-| `background` | `oklch(1 0 0)` | `oklch(0.145 0 0)` | `--color-app-bg` | App background |
-| `foreground` | `oklch(0.145 0 0)` | `oklch(0.985 0 0)` | `--color-text` | Primary text |
-| `card` / `popover` | `oklch(1 0 0)` | `oklch(0.205 0 0)` | `--color-surface` | Header, panels, rows, controls |
-| `primary` | `oklch(0.205 0 0)` | `oklch(0.922 0 0)` | `--color-primary` | Primary command and committed polygon stroke |
-| `primary-foreground` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | `--color-surface` | Text/icons on primary commands |
-| `secondary` / `muted` / `accent` | `oklch(0.97 0 0)` | `oklch(0.269 0 0)` | derived neutral surfaces | Subtle fills, hover states |
-| `muted-foreground` | `oklch(0.556 0 0)` | `oklch(0.708 0 0)` | `--color-muted-text` | Secondary/helper text |
-| `destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | future `--color-destructive` | Delete-specific UI, if needed |
-| `border` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 10%)` | `--color-border` | Standard dividers and borders |
-| `input` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 15%)` | `--color-border-strong` | Stronger control/canvas borders |
+| `background` | `oklch(1 0 0)` | `oklch(0.145 0 0)` | `palette.background.default` | App background |
+| `foreground` | `oklch(0.145 0 0)` | `oklch(0.985 0 0)` | `palette.text.primary` | Primary text |
+| `card` / `popover` | `oklch(1 0 0)` | `oklch(0.205 0 0)` | `palette.background.paper` | Toolbar groups and canvas surface |
+| `primary` | `oklch(0.205 0 0)` | `oklch(0.922 0 0)` | `palette.primary.main` | Primary command and active geometry |
+| `primary-foreground` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | `palette.primary.contrastText` | Text/icons on primary commands |
+| `secondary` / `muted` / `accent` | `oklch(0.97 0 0)` | `oklch(0.269 0 0)` | `palette.text.secondary` and derived alpha fills | Helper text and subtle states |
+| `muted-foreground` | `oklch(0.556 0 0)` | `oklch(0.708 0 0)` | `palette.text.secondary` | Secondary/helper text |
+| `destructive` | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | `palette.error.main` | Delete-mode target state |
+| `border` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 10%)` | `palette.divider` | Standard dividers and borders |
+| `input` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 15%)` | `palette.divider` | Control/canvas borders |
 | `ring` | `oklch(0.708 0 0)` | `oklch(0.556 0 0)` | active/focus outline color | Focus rings |
 
-Rule: component styling should use semantic variables or semantic utility classes. Avoid literal values like `bg-white`, `text-black`, or ad hoc hex values in components.
+Rule: component styling should use the Material UI theme. Avoid ad hoc hex values in components unless the value is a local SVG rendering detail.
 
 ### Editor Geometry Tokens
 
 These tokens are allowed because they encode drawing state, not general app chrome.
 
-| Current CSS variable | Value | Usage |
+| Current theme/source | Value | Usage |
 | --- | --- | --- |
-| `--color-canvas` | `#fbfcfb` | SVG canvas fill |
-| `--color-primary` | `#2f6f73` | Polygon stroke and primary command |
-| `--color-primary-dark` | `#163f42` | Active polygon stroke |
-| `--color-active` | `#f4b24e` | Active tool and polygon vertices |
-| `--color-point` | `#e85d4f` | Committed point geometry |
-| `--color-draft` | `#b45a9c` | In-progress polygon draft |
+| `palette.background.paper` | `#ffffff` | SVG canvas fill |
+| `palette.text.primary` | `#171717` | Committed point and polygon geometry |
+| `palette.primary.main` | `#171717` | Active/dragging geometry and primary command |
+| `palette.error.main` | `#dc2626` | Delete-mode target state |
 
 Usage rules:
 
 - Keep the app shell neutral and restrained.
-- Use teal for committed polygon geometry and the primary Complete action.
-- Use amber for active mode and polygon vertices.
-- Use red only for point geometry unless a distinct destructive token is added.
-- Use purple only for uncommitted polygon drafts.
+- Use neutral geometry for committed objects so the editor shell stays quiet.
+- Use the primary token for active, hovered, dragging, and draft geometry.
+- Use the error token only for delete-mode target feedback.
 - Do not add new hues unless they represent a new editor state the user must distinguish.
 
 ## 3. Typography
@@ -106,7 +103,7 @@ Reference target:
 Current implementation:
 
 ```css
-"Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif
+Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
 ```
 
 Typography rules:
@@ -119,9 +116,9 @@ Typography rules:
 
 | Element | Style |
 | --- | --- |
-| App title | `1.2rem`, weight `760`, tight line height |
+| App title | `1.5rem`, weight `650`, tight line height |
 | Active mode label | `0.88rem`, secondary color |
-| Tool labels | `0.72rem`, compact, single line |
+| Tool labels | Material UI button typography, compact, single line |
 | Panel headings | `0.82rem`, uppercase, weight `760` |
 | Metric values | `1.22rem`, weight `760` |
 | Object metadata | `0.82rem` to `0.86rem` |
@@ -148,11 +145,11 @@ Tailwind radius utilities derive proportionally from that base:
 
 Current implementation:
 
-| CSS variable | Value | Usage |
+| Theme/source | Value | Usage |
 | --- | --- | --- |
-| `--radius-control` | `8px` | Buttons, canvas, rows, metric cards, rail brand |
-| `--shadow-canvas` | `0 18px 48px rgba(32, 36, 42, 0.12)` | Canvas separation from app background |
-| `--motion-fast` | `160ms ease` | Button, row, border, and shadow transitions |
+| `theme.shape.borderRadius` | `8px` | Buttons, toolbar groups, canvas |
+| Canvas shadow | `0 14px 40px rgba(0, 0, 0, 0.08)` | Canvas separation from app background |
+| MUI defaults | Component default transitions | Button and toggle states |
 
 Motion rules:
 
@@ -163,29 +160,29 @@ Motion rules:
 
 ## 5. Layout and Spacing
 
-The app uses a fixed editor shell with four primary zones.
+The app uses a compact editor shell with three primary zones.
 
 | Region | Purpose | Current implementation |
 | --- | --- | --- |
-| Left tool rail | Mode switching | `88px` desktop rail |
-| Top bar | Product title, active mode, Undo, Redo, Cancel Draft, Complete | `76px` desktop header |
-| Main workspace | SVG drawing surface | Flexible center column |
-| Right inspector | Object count, draft count, history depth, object list | `304px` desktop panel |
+| Header | Product title and compact description | Top of app shell |
+| Toolbar | Mode switching, history, polygon commands, and contextual status | Wrapped row below header |
+| Canvas workspace | SVG drawing surface | Horizontally scrollable panel when viewport is narrower than the canvas |
 
 Desktop layout:
 
 ```text
-+-----------+-------------------------------+----------------+
-  Tool rail   Top bar                         Top bar
-              Canvas workspace                Inspector
-+-----------+-------------------------------+----------------+
++-------------------------------------------------------+
+  Header
+  Toolbar: tools, history, polygon commands
+  Canvas workspace
++-------------------------------------------------------+
 ```
 
 Responsive behavior:
 
-- Below `980px`, the inspector moves below the canvas.
-- Below `620px`, the tool rail becomes horizontal and the layout stacks vertically.
-- The SVG canvas keeps a stable `1000 x 640` coordinate system through its `viewBox`.
+- The toolbar wraps controls across rows as space tightens.
+- The canvas panel scrolls horizontally below `900px` content width.
+- The SVG canvas keeps a stable `900 x 560` coordinate system through its `viewBox`.
 
 Spacing rules:
 
@@ -196,35 +193,33 @@ Spacing rules:
 
 ## 6. Component Conventions
 
-### Tool Rail
+### Toolbar
 
-The tool rail is a persistent dark surface for editor mode selection.
+The toolbar is a compact Material UI surface for repeated editor commands.
 
-- Icons come from `lucide-react`.
-- Buttons are native `button` elements.
-- Desktop tool buttons are `64px` wide with icon above label.
+- Icons come from `@mui/icons-material`.
+- Buttons use Material UI `Button`, `ToggleButton`, and `ToggleButtonGroup`.
+- Tool buttons use icon-and-label layout in a wrapping row.
 - Active mode uses a strong filled state.
 - Inactive buttons remain quiet and transparent.
-- Hover/focus uses a subtle overlay and visible outline.
-- Buttons use `aria-pressed` to expose the selected mode.
+- Hover/focus uses Material UI component states.
+- The exclusive toggle group exposes the selected mode.
 
 | Tool | Icon | Behavior |
 | --- | --- | --- |
-| Point | `CircleDot` | Click canvas to create a point |
-| Polygon | `Pentagon` | Click canvas to add draft vertices |
-| Move | `Move` | Drag a point or polygon |
-| Delete | `Trash2` | Click an object to remove it |
+| Point | `AdjustRounded` | Click canvas to create a point |
+| Polygon | `PentagonOutlined` | Click canvas to add draft vertices |
+| Move | `OpenWithRounded` | Drag a point or polygon |
+| Delete | `DeleteOutlineRounded` | Click an object to remove it |
 
-### Top Bar
+### History And Polygon Commands
 
-The top bar orients the user and holds history/finalization commands.
+History and polygon finalization commands live in bordered toolbar groups.
 
-- Left side: app title and active mode text.
-- Right side: Undo, Redo, Cancel Draft, Complete.
-- Background is semi-opaque white with subtle blur.
 - Undo and Redo are disabled when their stacks are empty.
-- Cancel Draft is disabled unless Polygon Mode has at least one draft vertex.
-- Complete is disabled unless Polygon Mode has at least three draft vertices.
+- Cancel appears only when Polygon Mode has at least one draft vertex.
+- Complete appears only when Polygon Mode has at least one draft vertex and is disabled until the draft has at least three vertices.
+- When a draft exists, the toolbar shows a chip with the current vertex count.
 
 Tailwind/shadcn migration:
 
@@ -234,12 +229,12 @@ Tailwind/shadcn migration:
 
 ### Canvas Surface
 
-The canvas is an SVG element with a `1000 x 640` logical coordinate space.
+The canvas is an SVG element with a `900 x 560` logical coordinate space.
 
 Visual rules:
 
-- Off-white canvas fill.
-- Light grid pattern every `40` SVG units.
+- White canvas fill from `palette.background.paper`.
+- Light grid pattern every `24` SVG units.
 - `8px` radius in the current implementation; `rounded-md` in Tailwind.
 - Thin neutral border and soft shadow.
 - Cursor changes by mode:
@@ -248,16 +243,12 @@ Visual rules:
   - Active drag: grabbing cursor
   - Delete: pointer on pickable objects
 
-### Inspector
+### Status Text
 
-The inspector provides lightweight document feedback.
+The toolbar includes one polite live region with short operational text:
 
-Sections:
-
-- Document metrics: Objects, Draft, Undo, Redo.
-- Object list: object index, object type, coordinate or vertex count.
-
-Metric cards and object rows use neutral surfaces, thin borders, compact text, and stable dimensions. They are cards because they are repeated information units, not decorative wrappers.
+- Active tool hint when no polygon draft exists.
+- Draft guidance while the user is adding polygon vertices.
 
 ## 7. Shape Visual Language
 
@@ -265,38 +256,39 @@ Metric cards and object rows use neutral surfaces, thin borders, compact text, a
 
 - Visible point radius: `7`.
 - Hit area radius: `15`.
-- Fill: `--color-point`.
-- Stroke: `--color-surface` by default.
-- Active/hover state: darker and thicker outline.
+- Fill: `palette.text.primary`.
+- Stroke: `palette.background.paper` by default.
+- Active/hover state: thicker `palette.primary.main` outline.
 
 ### Polygons
 
-- Fill: translucent teal.
-- Stroke: `--color-primary`.
-- Stroke width: `3`.
-- Vertices: small amber circles.
-- Active/hover state: deeper fill, darker stroke, thicker vertex outline.
+- Fill: translucent neutral.
+- Stroke: `palette.text.primary`.
+- Stroke width: `2.5`.
+- Vertices: small white circles with neutral stroke.
+- Active/hover state: primary-tinted fill and thicker primary stroke.
 
 ### Draft Polygons
 
-- Draft geometry is visually distinct from committed geometry.
-- Line: purple, dashed, rounded joins.
-- Vertices: purple circles with white stroke.
+- Draft geometry uses the primary token but remains dashed so it differs from committed polygons.
+- Line: primary, dashed, rounded joins.
+- Vertices: primary circles with white stroke.
 - Draft shapes are non-interactive until completed.
 
 ## 8. Interaction States
 
 | State | Visual treatment |
 | --- | --- |
-| Default tool | Transparent dark-rail button |
+| Default tool | Quiet Material UI toggle button |
 | Active tool | Filled button with strong contrast |
 | Hovered tool | Subtle overlay |
-| Focused tool/button | Visible outline using ring/active color |
-| Disabled command | Lower opacity and `not-allowed` cursor |
-| Hovered object | Inspector row highlight and object active styling |
+| Focused tool/button | Visible Material UI focus state |
+| Disabled command | Material UI disabled state |
+| Hovered object | Object active styling |
 | Selected object | Same object styling as hover, held through active drag |
 | Dragging object | Shape preview follows pointer; history commits on pointer release |
-| Polygon draft | Purple dashed temporary geometry |
+| Canceled drag | Preview is discarded; committed object coordinates and history are unchanged |
+| Polygon draft | Primary dashed temporary geometry |
 
 State rules:
 
@@ -307,14 +299,14 @@ State rules:
 
 ## 9. Accessibility
 
-- `main`, `aside`, `header`, and `section` landmarks structure the app.
-- Mode buttons use native `button` elements and `aria-pressed`.
-- Undo, Redo, Cancel Draft, and Complete use native `disabled`.
+- The header orients the app; toolbar groups expose descriptive `aria-label` values.
+- Mode controls use Material UI toggle buttons inside an exclusive toggle group.
+- Undo, Redo, and Complete expose accurate disabled states; Cancel appears only while a polygon draft exists.
 - The SVG drawing surface uses `role="img"` and `aria-label="Editable vector canvas"`.
 - Icon buttons include visible text labels.
 - Text labels avoid relying on color alone.
 - Focus states must remain visible for keyboard users.
-- Future shadcn components must preserve accessible names and focus behavior from the current native controls.
+- Future component swaps must preserve accessible names and focus behavior from the current Material UI controls.
 
 ## 10. Base Layer Rules
 
@@ -324,12 +316,12 @@ Reference Tailwind/shadcn base layer:
 - `body` receives `bg-background text-foreground`.
 - `html` receives `font-sans`.
 
-Current CSS equivalent:
+Current global layer:
 
 - Global `box-sizing: border-box`.
-- `body` sets app background and removes default margin.
-- Buttons inherit font.
-- `button:focus-visible` and `svg:focus-visible` provide visible focus rings.
+- `html`, `body`, and `#root` provide minimum viewport dimensions.
+- Material UI `CssBaseline` supplies the baseline reset.
+- Material UI components provide their own focus states.
 
 ## 11. Files
 
@@ -337,9 +329,12 @@ Current files:
 
 | File | Responsibility |
 | --- | --- |
-| `src/App.css` | Design tokens, layout, component styles, SVG visual states |
-| `src/App.tsx` | Editor shell, tool controls, canvas markup, inspector markup |
-| `src/editor/editorModel.ts` | State transitions that drive UI state |
+| `src/designSystem.ts` | Material UI theme, typography, palette, component defaults, shared control dimensions |
+| `src/App.css` | Minimal global box sizing and viewport constraints |
+| `src/App.tsx` | Editor shell, pointer-event orchestration, preview drag state |
+| `src/editor/EditorToolbar.tsx` | Tool, history, polygon command, and status controls |
+| `src/editor/EditorCanvas.tsx` | SVG canvas rendering and visual states |
+| `src/editor/editorModel.ts` | Pure geometry, history, hit-testing, and state transitions |
 
 Future Tailwind/shadcn equivalents:
 
@@ -354,11 +349,11 @@ Future Tailwind/shadcn equivalents:
 
 When adding UI:
 
-- Add new semantic values as CSS variables before scattering raw color values.
-- Keep the effective palette small: neutral shell colors plus editor-specific geometry tokens.
-- Add a destructive token only when delete actions need stronger visual emphasis.
-- Prefer semantic tokens over raw values so future light/dark themes and rebrands are manageable.
-- Prefer native controls and small local components while the project remains minimum-spec.
+- Add new semantic values to the Material UI theme before scattering raw color values.
+- Keep the effective palette small: neutral shell colors plus delete/error feedback.
+- Use `palette.error` only when delete actions need stronger visual emphasis.
+- Prefer theme tokens over raw values so future light/dark themes and rebrands are manageable.
+- Prefer Material UI controls and small local components while the project remains minimum-spec.
 - Introduce Tailwind/shadcn only if the app grows enough to justify the dependency and setup cost.
 
 When migrating to Tailwind/shadcn:
@@ -376,7 +371,6 @@ The current design system deliberately does not include:
 - Theme switching.
 - Tailwind CSS runtime.
 - shadcn/ui runtime.
-- Material UI.
 - Token generation.
 - Icon-only controls.
 - Advanced drawing tools.

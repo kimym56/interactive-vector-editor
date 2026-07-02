@@ -51,8 +51,8 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - The in-progress polygon should show the vertices added so far.
 - The polygon is finalized only when the user clicks a Complete button.
 - The Complete button is enabled only when the in-progress polygon has at least three vertices.
-- A Cancel Draft control is available in Polygon Mode whenever at least one draft vertex exists.
-- Clicking Cancel Draft removes the in-progress polygon without creating a history entry.
+- A Cancel control is available in Polygon Mode whenever at least one draft vertex exists.
+- Clicking Cancel removes the in-progress polygon without creating a history entry.
 - Switching from Polygon Mode to another mode discards the in-progress polygon without creating a history entry.
 - Undo and Redo apply only to completed reversible actions; they do not remove or restore individual draft polygon vertices.
 - Completing a polygon after undoing a previous completed action is a new action and clears redo history.
@@ -155,7 +155,7 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - Stable object IDs or an equivalent deterministic identity strategy for reliable history operations.
 - Basic hit detection tolerance so small points and polygon outlines are practical to select and delete.
 - Deterministic picking behavior for overlapping objects.
-- Disabled state for Undo, Redo, Complete, and Cancel Draft when unavailable.
+- Disabled state for Undo, Redo, and Complete when unavailable; Cancel is visible only while a polygon draft exists.
 - Clear visual distinction between points, polygon vertices, polygon outlines, selected objects, hovered targets, and active-drag state.
 - Automated tests for core logic.
 - Root README with development, installation, execution, and testing instructions.
@@ -205,7 +205,7 @@ Users need a simple canvas editor where they can create geometric shapes, change
 | NF-002 | Shape state is deterministic and testable. | Core geometry and history logic should be separated enough to test without browser-only interaction. |
 | NF-003 | The app works locally without accounts or backend services. | Local development and browser execution only. |
 | NF-004 | Project setup is reproducible. | Node.js version, package manager, and lockfile are documented and committed. |
-| NF-005 | Controls and the SVG canvas meet a baseline accessibility standard. | Mode, Undo, Redo, Complete, and Cancel Draft controls use semantic buttons, accessible names, visible focus states, and accurate disabled states; the SVG canvas has an accessible label. |
+| NF-005 | Controls and the SVG canvas meet a baseline accessibility standard. | Mode, Undo, Redo, Complete, and Cancel controls use semantic buttons, accessible names, visible focus states, and accurate disabled or visible states; the SVG canvas has an accessible label. |
 
 ## 10. Testing Requirements
 
@@ -213,7 +213,7 @@ Automated tests must cover core logic. At minimum, tests should include represen
 
 - Point creation at a given coordinate.
 - Polygon vertex collection and completion.
-- Draft polygon visibility, Cancel Draft behavior, and draft clearing when leaving Polygon Mode.
+- Draft polygon visibility, Cancel behavior, and draft clearing when leaving Polygon Mode.
 - Complete button enabled and disabled states.
 - Movement coordinate calculations for points.
 - Movement coordinate calculations for polygons.
@@ -274,7 +274,7 @@ For a public GitHub repository:
 - The UI must make the active mode obvious.
 - Canvas clicks must have mode-specific behavior and avoid ambiguous outcomes.
 - The Complete button should be available only when Polygon Mode has at least three draft vertices.
-- The Cancel Draft control should be available only when Polygon Mode has at least one draft vertex.
+- The Cancel control should be available only when Polygon Mode has at least one draft vertex.
 - Undo and Redo controls should communicate when no action is available.
 - Points should be large enough to click reliably.
 - Polygons should be selectable by the filled area and outline. Vertices do not need separate editing behavior.
@@ -327,7 +327,7 @@ The implementation should maintain a clear internal document state.
 | --- | --- |
 | Polygon selection | Select polygons by filled area and outline. |
 | Polygon completion | Enable Complete at three or more vertices. |
-| Draft polygon lifecycle | Cancel Draft clears the draft without history; switching away from Polygon Mode also clears the draft without history. |
+| Draft polygon lifecycle | Cancel clears the draft without history; switching away from Polygon Mode also clears the draft without history. |
 | Object picking | Points win over polygon outlines, outlines win over polygon fills, and same-category ties resolve to the most recently created object. |
 | Movement history | Record one history entry per completed drag, not every pointer move. |
 | No-op movement | Click-only selections, zero-distance drags, and canceled drags do not create history entries. |

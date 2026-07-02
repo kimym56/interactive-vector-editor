@@ -30,6 +30,15 @@ function getDraftVertexCount(canvas: Element) {
   return canvas.querySelectorAll(".draft-shape circle").length;
 }
 
+function getPointPosition(canvas: Element) {
+  const point = canvas.querySelector(".point-core");
+
+  return {
+    x: point?.getAttribute("cx"),
+    y: point?.getAttribute("cy")
+  };
+}
+
 function expectToolbarControlsToUseSharedHeight() {
   const buttonRoot = editorTheme.components?.MuiButton?.styleOverrides?.root as Record<string, unknown>;
   const toggleButtonRoot = editorTheme.components?.MuiToggleButton?.styleOverrides?.root as Record<string, unknown>;
@@ -53,12 +62,13 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Polygon" }));
-    expect(screen.getByRole("button", { name: "Complete" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel Draft" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Complete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
 
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
-    expect(screen.getByRole("button", { name: "Cancel Draft" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel Draft" }));
+    expect(screen.getByRole("button", { name: "Complete" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(getDraftVertexCount(canvas)).toBe(0);
 
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
@@ -80,6 +90,53 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Redo" }));
     expect(getPointCount(canvas)).toBe(1);
     expect(getPolygonCount(canvas)).toBe(1);
+  });
+
+  it("moves and deletes objects through canvas pointer interactions", () => {
+    render(<App />);
+
+    const canvas = screen.getByLabelText("Editable vector canvas");
+    mockCanvasRect(canvas);
+
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Move" }));
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 150, clientY: 140, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { clientX: 150, clientY: 140, pointerId: 1 });
+
+    expect(getPointPosition(canvas)).toEqual({ x: "150", y: "140" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(getPointPosition(canvas)).toEqual({ x: "100", y: "100" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Redo" }));
+    expect(getPointPosition(canvas)).toEqual({ x: "150", y: "140" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.pointerDown(canvas, { clientX: 150, clientY: 140, pointerId: 1 });
+    expect(getPointCount(canvas)).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(getPointPosition(canvas)).toEqual({ x: "150", y: "140" });
+  });
+
+  it("cancels active drags without moving objects or recording history", () => {
+    render(<App />);
+
+    const canvas = screen.getByLabelText("Editable vector canvas");
+    mockCanvasRect(canvas);
+
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Move" }));
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 180, clientY: 160, pointerId: 1 });
+    fireEvent.pointerCancel(canvas, { clientX: 180, clientY: 160, pointerId: 1 });
+
+    expect(getPointPosition(canvas)).toEqual({ x: "100", y: "100" });
+    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(getPointCount(canvas)).toBe(0);
   });
 
   it("presents the Material UI editor chrome with contextual drafting state", () => {
