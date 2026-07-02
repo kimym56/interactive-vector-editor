@@ -32,7 +32,8 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - Advanced exports such as SVG, PNG, PDF, or design-tool formats.
 - Real-time collaboration.
 - Backend persistence or user accounts.
-- Keyboard shortcuts, grid or coordinate overlays, and debugging-only object lists.
+- Keyboard shortcuts beyond normal button focus and activation.
+- Grid or coordinate overlays, and debugging-only object lists.
 
 ## 6. Core Functional Requirements
 
@@ -50,6 +51,11 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - The in-progress polygon should show the vertices added so far.
 - The polygon is finalized only when the user clicks a Complete button.
 - The Complete button is enabled only when the in-progress polygon has at least three vertices.
+- A Cancel Draft control is available in Polygon Mode whenever at least one draft vertex exists.
+- Clicking Cancel Draft removes the in-progress polygon without creating a history entry.
+- Switching from Polygon Mode to another mode discards the in-progress polygon without creating a history entry.
+- Undo and Redo apply only to completed reversible actions; they do not remove or restore individual draft polygon vertices.
+- Completing a polygon after undoing a previous completed action is a new action and clears redo history.
 - Completing a polygon connects the vertices into a closed shape.
 - Polygon creation must be recorded in the history stack after the polygon is completed.
 
@@ -60,7 +66,11 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - When the editor is in Move Mode, users can select and drag an existing point to a new position.
 - When the editor is in Move Mode, users can select and drag an existing polygon to a new position.
 - Moving a polygon must preserve the relative positions of its vertices.
-- Drag-and-drop movement must be recorded as one history entry when the drag completes.
+- Drag-and-drop movement starts only after pointer down selects an existing object through the deterministic hit-test rules.
+- Dragging must keep the selected object active until pointer release, including release outside the visible SVG when the browser supports pointer capture or equivalent handling.
+- Drag-and-drop movement must be recorded as one history entry when the drag completes and the final document coordinates differ from the starting document coordinates.
+- Click-only selection, zero-distance drags, and canceled drags must not create history entries.
+- Canceled drags must restore the object to its pre-drag coordinates.
 
 #### Delete Mode
 
@@ -68,12 +78,26 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - When the editor is in Delete Mode, clicking an existing polygon removes it from the canvas.
 - Deletion must be recorded in the history stack.
 
+#### Hit Testing And Object Picking
+
+- All pointer interactions use normalized SVG document coordinates, not raw browser client coordinates.
+- Points must have a minimum hit-test tolerance large enough to select and delete reliably.
+- Polygon outlines must have a fixed hit-test tolerance.
+- Polygon filled areas must be selectable.
+- When multiple objects are hit, the editor must use this deterministic picking order:
+  1. Points.
+  2. Polygon outlines.
+  3. Polygon filled areas.
+  4. For ties within the same category, the most recently created object wins.
+- Move Mode and Delete Mode must use the same picking order.
+
 ### 6.3 History: Undo And Redo
 
 - The application must maintain a history stack.
 - Users must be able to undo actions at any time when undo history exists.
 - Users must be able to redo actions at any time when redo history exists.
 - Performing a new action after undoing must clear redo history.
+- Undo and Redo apply only to completed reversible actions in the history stack.
 - History must cover:
   - Point creation.
   - Polygon creation.
@@ -128,15 +152,19 @@ Users need a simple canvas editor where they can create geometric shapes, change
 - Undo control.
 - Redo control.
 - Internal history stack for creation, movement, and deletion.
+- Stable object IDs or an equivalent deterministic identity strategy for reliable history operations.
+- Basic hit detection tolerance so small points and polygon outlines are practical to select and delete.
+- Deterministic picking behavior for overlapping objects.
+- Disabled state for Undo, Redo, Complete, and Cancel Draft when unavailable.
+- Clear visual distinction between points, polygon vertices, polygon outlines, selected objects, hovered targets, and active-drag state.
 - Automated tests for core logic.
 - Root README with development, installation, execution, and testing instructions.
 
 ### Should Have
 
-- Clear visual distinction between points, polygon vertices, polygon outlines, and selected/hovered objects.
-- Disabled state for Undo, Redo, and Complete when unavailable.
-- Basic hit detection tolerance so small points are practical to select and delete.
-- Stable object IDs for reliable history operations.
+- Mode-specific pointer affordances, such as placement, move, and delete cursors.
+- Responsive canvas sizing that preserves document-coordinate behavior.
+- A lightweight manual validation affordance, such as selected-object coordinates or an optional read-only state inspector.
 
 ### Out Of MVP
 
@@ -162,6 +190,12 @@ Users need a simple canvas editor where they can create geometric shapes, change
 | F-010 | Users can undo point and polygon movement. | Must | Restores previous coordinates. |
 | F-011 | Users can undo point and polygon deletion. | Must | Restores deleted object. |
 | F-012 | Users can redo undone creation, movement, and deletion actions. | Must | Redo stack clears after a new action. |
+| F-013 | Users can see draft polygon vertices before completion. | Must | Draft vertices are visible but are not final objects. |
+| F-014 | Users can cancel an in-progress polygon draft. | Must | Canceling or leaving Polygon Mode clears the draft without history. |
+| F-015 | Users can rely on deterministic object picking in Move and Delete modes. | Must | Picking order is points, polygon outlines, polygon fills, then reverse creation order for ties. |
+| F-016 | Users do not create history entries from click-only selections, zero-distance drags, or canceled drags. | Must | Movement history records only meaningful coordinate changes. |
+| F-017 | Users interact with shapes through normalized SVG document coordinates. | Must | Pointer events are converted from browser coordinates before creation, movement, hit testing, or history recording. |
+| F-018 | Users can identify target, selected, and active-drag states. | Must | State transitions must be visible enough to avoid ambiguous move/delete behavior. |
 
 ### Non-Functional Requirements
 
@@ -171,6 +205,7 @@ Users need a simple canvas editor where they can create geometric shapes, change
 | NF-002 | Shape state is deterministic and testable. | Core geometry and history logic should be separated enough to test without browser-only interaction. |
 | NF-003 | The app works locally without accounts or backend services. | Local development and browser execution only. |
 | NF-004 | Project setup is reproducible. | Node.js version, package manager, and lockfile are documented and committed. |
+| NF-005 | Controls and the SVG canvas meet a baseline accessibility standard. | Mode, Undo, Redo, Complete, and Cancel Draft controls use semantic buttons, accessible names, visible focus states, and accurate disabled states; the SVG canvas has an accessible label. |
 
 ## 10. Testing Requirements
 
@@ -178,8 +213,14 @@ Automated tests must cover core logic. At minimum, tests should include represen
 
 - Point creation at a given coordinate.
 - Polygon vertex collection and completion.
+- Draft polygon visibility, Cancel Draft behavior, and draft clearing when leaving Polygon Mode.
+- Complete button enabled and disabled states.
 - Movement coordinate calculations for points.
 - Movement coordinate calculations for polygons.
+- Browser pointer coordinate conversion into SVG document coordinates.
+- Point, polygon outline, and polygon fill hit testing.
+- Overlapping-object picking precedence.
+- Click-only selection and zero-distance drag behavior.
 - History stack behavior for create, move, delete, undo, and redo.
 - Redo stack clearing after a new action follows an undo.
 
@@ -233,15 +274,21 @@ For a public GitHub repository:
 - The UI must make the active mode obvious.
 - Canvas clicks must have mode-specific behavior and avoid ambiguous outcomes.
 - The Complete button should be available only when Polygon Mode has at least three draft vertices.
+- The Cancel Draft control should be available only when Polygon Mode has at least one draft vertex.
 - Undo and Redo controls should communicate when no action is available.
 - Points should be large enough to click reliably.
 - Polygons should be selectable by the filled area and outline. Vertices do not need separate editing behavior.
+- Hover state should indicate the object that would be moved or deleted if the user acts.
+- Selection state should persist during an active drag and clear when the drag completes, the drag is canceled, or the user switches modes.
+- A missed click in Move Mode or Delete Mode should leave object state unchanged and should not create a history entry.
+- Move Mode should use a move/grab affordance for pickable objects and an active dragging affordance while dragging.
+- Delete Mode should use a distinct hover affordance for the object that would be deleted.
 
 ## 15. Data Model
 
 The implementation should maintain a clear internal document state.
 
-- Document: collection of geometric objects plus active mode and in-progress polygon state.
+- Document: collection of geometric objects plus active mode, selected object state, active drag state, and in-progress polygon state.
 - Point object: stable ID and coordinate.
 - Polygon object: stable ID and ordered vertex coordinates.
 - In-progress polygon: ordered vertex coordinates not yet committed as a final object.
@@ -255,6 +302,9 @@ The implementation should maintain a clear internal document state.
 - Package manager: choose one of npm, pnpm, or yarn during setup.
 - Lockfile: mandatory and must match the chosen package manager.
 - Rendering approach: SVG in the browser.
+- Coordinate model: the app maintains object coordinates in SVG document coordinates.
+- Pointer handling: browser pointer coordinates must be converted into SVG document coordinates before creation, movement, hit testing, or history recording.
+- Canvas sizing: the initial canvas must be large enough for the required workflows, and resizing must preserve existing object coordinates in the document coordinate system.
 - State management: must support deterministic Undo/Redo operations.
 - Testing: automated tests must run from a documented package script.
 
@@ -264,6 +314,8 @@ The implementation should maintain a clear internal document state.
 - A user can move points and polygons with drag-and-drop.
 - A user can delete points and polygons.
 - Undo and Redo work correctly for creation, movement, and deletion.
+- Draft polygon behavior is predictable across completion, canceling, mode changes, Undo, and Redo.
+- Object picking is deterministic when targets overlap.
 - Automated tests cover core logic.
 - README setup and test instructions are complete.
 - `AI_PROMPTS.md` exists if AI tools were used.
@@ -275,8 +327,12 @@ The implementation should maintain a clear internal document state.
 | --- | --- |
 | Polygon selection | Select polygons by filled area and outline. |
 | Polygon completion | Enable Complete at three or more vertices. |
+| Draft polygon lifecycle | Cancel Draft clears the draft without history; switching away from Polygon Mode also clears the draft without history. |
+| Object picking | Points win over polygon outlines, outlines win over polygon fills, and same-category ties resolve to the most recently created object. |
 | Movement history | Record one history entry per completed drag, not every pointer move. |
+| No-op movement | Click-only selections, zero-distance drags, and canceled drags do not create history entries. |
 | Rendering surface | Use SVG in the browser. |
+| Coordinate system | Store shape coordinates in normalized SVG document coordinates. |
 | Package manager and Node.js version | Use the values documented in the root README. |
 
 ## 19. Milestones
