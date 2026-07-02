@@ -1,4 +1,3 @@
-import type { SvgIconComponent } from "@mui/icons-material";
 import AdjustRounded from "@mui/icons-material/AdjustRounded";
 import CheckRounded from "@mui/icons-material/CheckRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
@@ -20,13 +19,6 @@ import { alpha, styled } from "@mui/material/styles";
 import { toolbarControlHeight } from "../designSystem";
 import type { EditorMode } from "./editorModel";
 
-type ToolDefinition = {
-  mode: EditorMode;
-  label: string;
-  hint: string;
-  Icon: SvgIconComponent;
-};
-
 type EditorToolbarProps = {
   mode: EditorMode;
   draftVertexCount: number;
@@ -40,12 +32,12 @@ type EditorToolbarProps = {
   onCancelDraft: () => void;
 };
 
-const tools: ToolDefinition[] = [
+const tools = [
   { mode: "point", label: "Point", hint: "Click to place a point", Icon: AdjustRounded },
   { mode: "polygon", label: "Polygon", hint: "Click to add vertices, then Complete", Icon: PentagonOutlined },
   { mode: "move", label: "Move", hint: "Drag a point or polygon", Icon: OpenWithRounded },
   { mode: "delete", label: "Delete", hint: "Click an object to remove it", Icon: DeleteOutlineRounded }
-];
+] as const;
 
 export const EditorToolbar = ({
   mode,
@@ -62,12 +54,6 @@ export const EditorToolbar = ({
   const isDrafting = mode === "polygon" && draftVertexCount > 0;
   const activeTool = tools.find((tool) => tool.mode === mode) ?? tools[0];
 
-  function handleModeChange(mode: EditorMode | null) {
-    if (mode) {
-      onModeChange(mode);
-    }
-  }
-
   return (
     <ToolbarSurface data-testid="toolbar-surface">
       <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
@@ -75,7 +61,7 @@ export const EditorToolbar = ({
           exclusive
           value={mode}
           aria-label="Drawing tools"
-          onChange={(_, mode) => handleModeChange(mode)}
+          onChange={(_, nextMode) => nextMode && onModeChange(nextMode)}
         >
           {tools.map(({ mode, label, Icon }) => (
             <ToggleButton key={mode} value={mode} aria-label={label}>

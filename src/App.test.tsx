@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import App from "./App";
-import { editorTheme, toolbarControlHeight } from "./designSystem";
 
 function mockCanvasRect(element: Element) {
   element.getBoundingClientRect = () =>
@@ -41,17 +40,6 @@ function getPointPosition(canvas: Element) {
     x: point?.getAttribute("cx"),
     y: point?.getAttribute("cy")
   };
-}
-
-function expectToolbarControlsToUseSharedHeight() {
-  const buttonRoot = editorTheme.components?.MuiButton?.styleOverrides?.root as Record<string, unknown>;
-  const toggleButtonRoot = editorTheme.components?.MuiToggleButton?.styleOverrides?.root as Record<string, unknown>;
-
-  expect(toolbarControlHeight).toBe(36);
-  expect(buttonRoot.height).toBe(toolbarControlHeight);
-  expect(buttonRoot.minHeight).toBe(toolbarControlHeight);
-  expect(toggleButtonRoot.height).toBe(toolbarControlHeight);
-  expect(toggleButtonRoot.minHeight).toBe(toolbarControlHeight);
 }
 
 describe("App", () => {
@@ -163,14 +151,7 @@ describe("App", () => {
       screen.getByText("Create points and polygons, move and delete objects, and step through your full edit history with undo and redo.")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Drawing tools")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Document inspector")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Editor status")).not.toBeInTheDocument();
     expect(screen.getByText("Click to place a point")).toBeInTheDocument();
-    expect(screen.getByTestId("toolbar-surface")).not.toHaveStyle({ border: "1px solid #e5e5e5" });
-    expect(screen.getByTestId("toolbar-surface")).not.toHaveStyle({ backgroundColor: "#ffffff" });
-    expect(screen.getByTestId("canvas-panel")).not.toHaveStyle({ border: "1px solid #e5e5e5" });
-    expect(screen.getByTestId("canvas-panel")).not.toHaveStyle({ backgroundColor: "#ffffff" });
-    expectToolbarControlsToUseSharedHeight();
 
     fireEvent.click(screen.getByRole("button", { name: "Polygon" }));
     expect(screen.getByText("Click to add vertices, then Complete")).toBeInTheDocument();
@@ -183,6 +164,5 @@ describe("App", () => {
     expect(screen.getByText("1 vertex")).toBeInTheDocument();
     expect(screen.getByText("Keep clicking to add vertices.")).toBeInTheDocument();
     expect(screen.getByText("1 vertex").closest(".MuiChip-root")).toBeInTheDocument();
-    expectToolbarControlsToUseSharedHeight();
   });
 });

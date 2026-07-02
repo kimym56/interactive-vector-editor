@@ -37,12 +37,6 @@ export const editorTheme = createTheme({
       fontWeight: 650,
       letterSpacing: 0
     },
-    h2: {
-      fontSize: "0.95rem",
-      lineHeight: 1.3,
-      fontWeight: 650,
-      letterSpacing: 0
-    },
     button: {
       textTransform: "none",
       fontWeight: 550
@@ -80,16 +74,6 @@ export const editorTheme = createTheme({
           "&.Mui-selected:hover": {
             backgroundColor: "#262626"
           }
-        }
-      }
-    },
-    MuiPaper: {
-      defaultProps: {
-        elevation: 0
-      },
-      styleOverrides: {
-        root: {
-          backgroundImage: "none"
         }
       }
     }

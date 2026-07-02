@@ -44,9 +44,6 @@ export type EditorState = {
   mode: EditorMode;
   objects: GeometryObject[];
   draftPolygon: Point[];
-  selectedObjectId: string | null;
-  activeDragObjectId: string | null;
-  hoveredObjectId: string | null;
   undoStack: HistoryAction[];
   redoStack: HistoryAction[];
   nextPointId: number;
@@ -55,8 +52,6 @@ export type EditorState = {
 
 export type HitTarget = {
   id: string;
-  object: GeometryObject;
-  category: "point" | "polygon-outline" | "polygon-fill";
 };
 
 export type ClientRectLike = Pick<DOMRect, "left" | "top" | "width" | "height">;
@@ -66,9 +61,6 @@ export function createInitialEditorState(): EditorState {
     mode: "point",
     objects: [],
     draftPolygon: [],
-    selectedObjectId: null,
-    activeDragObjectId: null,
-    hoveredObjectId: null,
     undoStack: [],
     redoStack: [],
     nextPointId: 1,
@@ -80,10 +72,7 @@ export function changeMode(state: EditorState, mode: EditorMode): EditorState {
   return {
     ...state,
     mode,
-    draftPolygon: state.mode === "polygon" && mode !== "polygon" ? [] : state.draftPolygon,
-    selectedObjectId: null,
-    activeDragObjectId: null,
-    hoveredObjectId: null
+    draftPolygon: state.mode === "polygon" && mode !== "polygon" ? [] : state.draftPolygon
   };
 }
 
@@ -91,7 +80,7 @@ export function createPoint(state: EditorState, position: Point): EditorState {
   const object: PointObject = {
     id: `point-${state.nextPointId}`,
     type: "point",
-    position: clonePoint(position)
+    position
   };
 
   return pushHistory(
@@ -107,7 +96,7 @@ export function createPoint(state: EditorState, position: Point): EditorState {
 export function startPolygonVertex(state: EditorState, vertex: Point): EditorState {
   return {
     ...state,
-    draftPolygon: [...state.draftPolygon, clonePoint(vertex)]
+    draftPolygon: [...state.draftPolygon, vertex]
   };
 }
 
@@ -123,7 +112,7 @@ export function completePolygon(state: EditorState): EditorState {
   const object: PolygonObject = {
     id: `polygon-${state.nextPolygonId}`,
     type: "polygon",
-    vertices: state.draftPolygon.map(clonePoint)
+    vertices: state.draftPolygon
   };
 
   return pushHistory(
@@ -183,9 +172,7 @@ export function deleteObjectAt(state: EditorState, point: Point): EditorState {
   return pushHistory(
     {
       ...state,
-      objects,
-      selectedObjectId: state.selectedObjectId === hit.id ? null : state.selectedObjectId,
-      hoveredObjectId: state.hoveredObjectId === hit.id ? null : state.hoveredObjectId
+      objects
     },
     { type: "delete", object, index }
   );
@@ -200,10 +187,7 @@ export function undo(state: EditorState): EditorState {
   return {
     ...applyUndoAction(state, action),
     undoStack: state.undoStack.slice(0, -1),
-    redoStack: [...state.redoStack, action],
-    selectedObjectId: null,
-    activeDragObjectId: null,
-    hoveredObjectId: null
+    redoStack: [...state.redoStack, action]
   };
 }
 
@@ -216,10 +200,7 @@ export function redo(state: EditorState): EditorState {
   return {
     ...applyRedoAction(state, action),
     undoStack: [...state.undoStack, action],
-    redoStack: state.redoStack.slice(0, -1),
-    selectedObjectId: null,
-    activeDragObjectId: null,
-    hoveredObjectId: null
+    redoStack: state.redoStack.slice(0, -1)
   };
 }
 
@@ -241,7 +222,7 @@ export function clientPointToDocumentPoint(rect: ClientRectLike, clientPoint: Po
 function pushHistory(state: EditorState, action: HistoryAction): EditorState {
   return {
     ...state,
-    undoStack: [...state.undoStack, cloneAction(action)],
+    undoStack: [...state.undoStack, action],
     redoStack: []
   };
 }
@@ -255,14 +236,14 @@ function applyUndoAction(state: EditorState, action: HistoryAction): EditorState
       };
     case "delete": {
       const objects = [...state.objects];
-      objects.splice(action.index, 0, cloneObject(action.object));
+      objects.splice(action.index, 0, action.object);
       return { ...state, objects };
     }
     case "move":
       return {
         ...state,
         objects: state.objects.map((object) =>
-          object.id === action.before.id ? cloneObject(action.before) : object
+          object.id === action.before.id ? action.before : object
         )
       };
   }
@@ -273,7 +254,7 @@ function applyRedoAction(state: EditorState, action: HistoryAction): EditorState
     case "create":
       return {
         ...state,
-        objects: [...state.objects, cloneObject(action.object)]
+        objects: [...state.objects, action.object]
       };
     case "delete":
       return {
@@ -284,7 +265,7 @@ function applyRedoAction(state: EditorState, action: HistoryAction): EditorState
       return {
         ...state,
         objects: state.objects.map((object) =>
-          object.id === action.after.id ? cloneObject(action.after) : object
+          object.id === action.after.id ? action.after : object
         )
       };
   }
@@ -314,7 +295,7 @@ function findPointHit(objects: GeometryObject[], point: Point): HitTarget | null
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "point" && distance(object.position, point) <= POINT_HIT_RADIUS) {
-      return { id: object.id, object, category: "point" };
+      return { id: object.id };
     }
   }
   return null;
@@ -324,7 +305,7 @@ function findPolygonOutlineHit(objects: GeometryObject[], point: Point): HitTarg
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "polygon" && isNearPolygonOutline(object.vertices, point)) {
-      return { id: object.id, object, category: "polygon-outline" };
+      return { id: object.id };
     }
   }
   return null;
@@ -334,24 +315,21 @@ function findPolygonFillHit(objects: GeometryObject[], point: Point): HitTarget 
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "polygon" && isPointInPolygon(object.vertices, point)) {
-      return { id: object.id, object, category: "polygon-fill" };
+      return { id: object.id };
     }
   }
   return null;
 }
 
 function isNearPolygonOutline(vertices: Point[], point: Point): boolean {
-  return getPolygonSegments(vertices).some(
-    ([start, end]) => distanceToSegment(point, start, end) <= POLYGON_OUTLINE_HIT_RADIUS
-  );
-}
-
-function getPolygonSegments(vertices: Point[]): Array<[Point, Point]> {
   if (vertices.length < 2) {
-    return [];
+    return false;
   }
 
-  return vertices.map((vertex, index) => [vertex, vertices[(index + 1) % vertices.length]]);
+  return vertices.some(
+    (vertex, index) =>
+      distanceToSegment(point, vertex, vertices[(index + 1) % vertices.length]) <= POLYGON_OUTLINE_HIT_RADIUS
+  );
 }
 
 function isPointInPolygon(vertices: Point[], point: Point): boolean {
@@ -391,37 +369,4 @@ function distance(a: Point, b: Point): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
-}
-
-function cloneAction(action: HistoryAction): HistoryAction {
-  switch (action.type) {
-    case "create":
-      return { type: "create", object: cloneObject(action.object) };
-    case "delete":
-      return { type: "delete", object: cloneObject(action.object), index: action.index };
-    case "move":
-      return {
-        type: "move",
-        before: cloneObject(action.before),
-        after: cloneObject(action.after)
-      };
-  }
-}
-
-function cloneObject<T extends GeometryObject>(object: T): T {
-  if (object.type === "point") {
-    return {
-      ...object,
-      position: clonePoint(object.position)
-    };
-  }
-
-  return {
-    ...object,
-    vertices: object.vertices.map(clonePoint)
-  };
-}
-
-function clonePoint(point: Point): Point {
-  return { x: point.x, y: point.y };
 }

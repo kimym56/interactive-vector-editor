@@ -37,8 +37,11 @@ const App = () => {
   const [state, setState] = useState<EditorState>(() => createInitialEditorState());
   const [drag, setDrag] = useState<DragState | null>(null);
   const [draftCursor, setDraftCursor] = useState<Point | null>(null);
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
 
   const previewObjects = getPreviewObjects(state.objects, drag);
+  const activeDragObjectId = drag?.objectId ?? null;
 
   function getDocumentPoint(event: PointerEvent<SVGSVGElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -48,6 +51,8 @@ const App = () => {
   function handleModeChange(mode: EditorMode) {
     setDrag(null);
     setDraftCursor(null);
+    setSelectedObjectId(null);
+    setHoveredObjectId(null);
     setState((current) => changeMode(current, mode));
   }
 
@@ -67,16 +72,15 @@ const App = () => {
 
     if (state.mode === "delete") {
       setState((current) => deleteObjectAt(current, point));
+      setSelectedObjectId(null);
+      setHoveredObjectId(null);
       return;
     }
 
     const hit = hitTest(state.objects, point);
     if (!hit) {
-      setState((current) => ({
-        ...current,
-        selectedObjectId: null,
-        activeDragObjectId: null
-      }));
+      setSelectedObjectId(null);
+      setHoveredObjectId(null);
       return;
     }
 
@@ -86,11 +90,7 @@ const App = () => {
       start: point,
       current: point
     });
-    setState((current) => ({
-      ...current,
-      selectedObjectId: hit.id,
-      activeDragObjectId: hit.id
-    }));
+    setSelectedObjectId(hit.id);
   }
 
   function handleCanvasPointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -108,14 +108,7 @@ const App = () => {
 
     if (state.mode === "move" || state.mode === "delete") {
       const hit = hitTest(state.objects, point);
-      setState((current) =>
-        current.hoveredObjectId === (hit?.id ?? null)
-          ? current
-          : {
-              ...current,
-              hoveredObjectId: hit?.id ?? null
-            }
-      );
+      setHoveredObjectId((current) => (current === (hit?.id ?? null) ? current : hit?.id ?? null));
     }
   }
 
@@ -126,12 +119,9 @@ const App = () => {
 
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     const delta = getDragDelta(drag);
-    setState((current) => ({
-      ...moveObject(current, drag.objectId, delta),
-      selectedObjectId: null,
-      activeDragObjectId: null,
-      hoveredObjectId: null
-    }));
+    setState((current) => moveObject(current, drag.objectId, delta));
+    setSelectedObjectId(null);
+    setHoveredObjectId(null);
     setDrag(null);
   }
 
@@ -141,12 +131,8 @@ const App = () => {
     }
 
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    setState((current) => ({
-      ...current,
-      selectedObjectId: null,
-      activeDragObjectId: null,
-      hoveredObjectId: null
-    }));
+    setSelectedObjectId(null);
+    setHoveredObjectId(null);
     setDrag(null);
   }
 
@@ -155,20 +141,24 @@ const App = () => {
       setDraftCursor(null);
     }
 
-    if (!drag && state.hoveredObjectId) {
-      setState((current) => ({ ...current, hoveredObjectId: null }));
+    if (!drag && hoveredObjectId) {
+      setHoveredObjectId(null);
     }
   }
 
   function handleUndo() {
     setDrag(null);
     setDraftCursor(null);
+    setSelectedObjectId(null);
+    setHoveredObjectId(null);
     setState((current) => undo(current));
   }
 
   function handleRedo() {
     setDrag(null);
     setDraftCursor(null);
+    setSelectedObjectId(null);
+    setHoveredObjectId(null);
     setState((current) => redo(current));
   }
 
@@ -210,9 +200,9 @@ const App = () => {
         objects={previewObjects}
         draftPolygon={state.draftPolygon}
         draftCursor={draftCursor}
-        selectedObjectId={state.selectedObjectId}
-        activeDragObjectId={state.activeDragObjectId}
-        hoveredObjectId={state.hoveredObjectId}
+        selectedObjectId={selectedObjectId}
+        activeDragObjectId={activeDragObjectId}
+        hoveredObjectId={hoveredObjectId}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={handleCanvasPointerUp}
