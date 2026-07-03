@@ -22,13 +22,13 @@ npm run dev
 
 The development server prints a local URL, typically `http://localhost:5173/`.
 
-## Testing
+## Verification
 
 ```bash
-npm test
+npm run check
 ```
 
-The automated tests cover core editor logic, including point creation, polygon completion, movement coordinate calculations, deletion, Undo/Redo behavior, and redo-stack clearing.
+The automated checks cover core editor logic, including point creation, polygon completion, movement coordinate calculations, deletion, Undo/Redo behavior, and redo-stack clearing.
 
 ## Production Build
 
