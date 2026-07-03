@@ -36,11 +36,15 @@ The automated tests cover core editor logic, including point creation, polygon c
 npm run build
 ```
 
-## Project Documents
+## Scope Checklist
 
-- `docs/PRD.md` - product requirements.
-- `docs/DESIGN.md` - UI design direction.
-- `AI_PROMPTS.md` - AI usage disclosure and prompt list.
+- Point and polygon creation.
+- Move and delete modes.
+- Undo and redo for completed create, move, and delete actions.
+- Polygon draft cancelation before completion.
+- Deterministic point, polygon outline, then polygon fill picking.
+- No backend, accounts, exports, layers, text tools, or collaboration.
+- AI usage disclosure: `docs/AI_PROMPTS.md`.
 
 ## Submission Notes
 

@@ -1,19 +1,16 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
+
+afterEach(cleanup);
 
 function mockCanvasRect(element: Element) {
   element.getBoundingClientRect = () =>
     ({
-      x: 0,
-      y: 0,
       left: 0,
       top: 0,
-      right: 900,
-      bottom: 560,
       width: 900,
-      height: 560,
-      toJSON: () => ({})
+      height: 560
     }) as DOMRect;
 }
 
@@ -51,15 +48,15 @@ describe("App", () => {
 
     fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100 });
     expect(getPointCount(canvas)).toBe(1);
-    expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+    expect(getButton("Undo").disabled).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "Polygon" }));
-    expect(screen.queryByRole("button", { name: "Complete" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Complete" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
 
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
-    expect(screen.getByRole("button", { name: "Complete" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(getButton("Complete").disabled).toBe(true);
+    expect(getButton("Cancel").disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(getDraftVertexCount(canvas)).toBe(0);
 
@@ -67,7 +64,7 @@ describe("App", () => {
     fireEvent.pointerDown(canvas, { clientX: 260, clientY: 200 });
     fireEvent.pointerDown(canvas, { clientX: 260, clientY: 260 });
 
-    expect(screen.getByRole("button", { name: "Complete" })).toBeEnabled();
+    expect(getButton("Complete").disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Complete" }));
 
     expect(getPointCount(canvas)).toBe(1);
@@ -77,7 +74,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(getPointCount(canvas)).toBe(1);
     expect(getPolygonCount(canvas)).toBe(0);
-    expect(screen.getByRole("button", { name: "Redo" })).toBeEnabled();
+    expect(getButton("Redo").disabled).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "Redo" }));
     expect(getPointCount(canvas)).toBe(1);
@@ -125,7 +122,7 @@ describe("App", () => {
     fireEvent.pointerCancel(canvas, { clientX: 180, clientY: 160, pointerId: 1 });
 
     expect(getPointPosition(canvas)).toEqual({ x: "100", y: "100" });
-    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+    expect(getButton("Redo").disabled).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(getPointCount(canvas)).toBe(0);
@@ -144,25 +141,26 @@ describe("App", () => {
     expect(getDraftPolylinePoints(canvas)).toBe("200,200 260,240");
   });
 
-  it("presents the Material UI editor chrome with contextual drafting state", () => {
+  it("presents the editor chrome with contextual drafting state", () => {
     render(<App />);
 
-    expect(
-      screen.getByText("Create points and polygons, move and delete objects, and step through your full edit history with undo and redo.")
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Drawing tools")).toBeInTheDocument();
-    expect(screen.getByText("Click to place a point")).toBeInTheDocument();
+    screen.getByText("Create points and polygons, move and delete objects, and step through your full edit history with undo and redo.");
+    screen.getByLabelText("Drawing tools");
+    screen.getByText("Click to place a point");
 
     fireEvent.click(screen.getByRole("button", { name: "Polygon" }));
-    expect(screen.getByText("Click to add vertices, then Complete")).toBeInTheDocument();
+    screen.getByText("Click to add vertices, then Complete");
 
     const canvas = screen.getByLabelText("Editable vector canvas");
     mockCanvasRect(canvas);
-    expect(canvas).toHaveAttribute("viewBox", "0 0 900 560");
+    expect(canvas.getAttribute("viewBox")).toBe("0 0 900 560");
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
 
-    expect(screen.getByText("1 vertex")).toBeInTheDocument();
-    expect(screen.getByText("Keep clicking to add vertices.")).toBeInTheDocument();
-    expect(screen.getByText("1 vertex").closest(".MuiChip-root")).toBeInTheDocument();
+    screen.getByText("1 vertex");
+    screen.getByText("Keep clicking to add vertices.");
   });
 });
+
+function getButton(name: string): HTMLButtonElement {
+  return screen.getByRole("button", { name }) as HTMLButtonElement;
+}

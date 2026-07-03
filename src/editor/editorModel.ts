@@ -50,12 +50,6 @@ export type EditorState = {
   nextPolygonId: number;
 };
 
-export type HitTarget = {
-  id: string;
-};
-
-export type ClientRectLike = Pick<DOMRect, "left" | "top" | "width" | "height">;
-
 export function createInitialEditorState(): EditorState {
   return {
     mode: "point",
@@ -204,7 +198,7 @@ export function redo(state: EditorState): EditorState {
   };
 }
 
-export function hitTest(objects: GeometryObject[], point: Point): HitTarget | null {
+export function hitTest(objects: GeometryObject[], point: Point): { id: string } | null {
   return (
     findPointHit(objects, point) ??
     findPolygonOutlineHit(objects, point) ??
@@ -212,7 +206,10 @@ export function hitTest(objects: GeometryObject[], point: Point): HitTarget | nu
   );
 }
 
-export function clientPointToDocumentPoint(rect: ClientRectLike, clientPoint: Point): Point {
+export function clientPointToDocumentPoint(
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  clientPoint: Point
+): Point {
   return {
     x: clamp(((clientPoint.x - rect.left) / rect.width) * CANVAS_WIDTH, 0, CANVAS_WIDTH),
     y: clamp(((clientPoint.y - rect.top) / rect.height) * CANVAS_HEIGHT, 0, CANVAS_HEIGHT)
@@ -291,7 +288,7 @@ export function translateObject(object: GeometryObject, delta: Point): GeometryO
   };
 }
 
-function findPointHit(objects: GeometryObject[], point: Point): HitTarget | null {
+function findPointHit(objects: GeometryObject[], point: Point): { id: string } | null {
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "point" && distance(object.position, point) <= POINT_HIT_RADIUS) {
@@ -301,7 +298,7 @@ function findPointHit(objects: GeometryObject[], point: Point): HitTarget | null
   return null;
 }
 
-function findPolygonOutlineHit(objects: GeometryObject[], point: Point): HitTarget | null {
+function findPolygonOutlineHit(objects: GeometryObject[], point: Point): { id: string } | null {
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "polygon" && isNearPolygonOutline(object.vertices, point)) {
@@ -311,7 +308,7 @@ function findPolygonOutlineHit(objects: GeometryObject[], point: Point): HitTarg
   return null;
 }
 
-function findPolygonFillHit(objects: GeometryObject[], point: Point): HitTarget | null {
+function findPolygonFillHit(objects: GeometryObject[], point: Point): { id: string } | null {
   for (let index = objects.length - 1; index >= 0; index -= 1) {
     const object = objects[index];
     if (object.type === "polygon" && isPointInPolygon(object.vertices, point)) {

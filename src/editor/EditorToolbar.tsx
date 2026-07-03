@@ -1,22 +1,3 @@
-import AdjustRounded from "@mui/icons-material/AdjustRounded";
-import CheckRounded from "@mui/icons-material/CheckRounded";
-import CloseRounded from "@mui/icons-material/CloseRounded";
-import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
-import OpenWithRounded from "@mui/icons-material/OpenWithRounded";
-import PentagonOutlined from "@mui/icons-material/PentagonOutlined";
-import RedoRounded from "@mui/icons-material/RedoRounded";
-import UndoRounded from "@mui/icons-material/UndoRounded";
-import {
-  Box,
-  Button,
-  Chip,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography
-} from "@mui/material";
-import { alpha, styled } from "@mui/material/styles";
-import { toolbarControlHeight } from "../designSystem";
 import type { EditorMode } from "./editorModel";
 
 type EditorToolbarProps = {
@@ -33,10 +14,10 @@ type EditorToolbarProps = {
 };
 
 const tools = [
-  { mode: "point", label: "Point", hint: "Click to place a point", Icon: AdjustRounded },
-  { mode: "polygon", label: "Polygon", hint: "Click to add vertices, then Complete", Icon: PentagonOutlined },
-  { mode: "move", label: "Move", hint: "Drag a point or polygon", Icon: OpenWithRounded },
-  { mode: "delete", label: "Delete", hint: "Click an object to remove it", Icon: DeleteOutlineRounded }
+  { mode: "point", label: "Point", hint: "Click to place a point" },
+  { mode: "polygon", label: "Polygon", hint: "Click to add vertices, then Complete" },
+  { mode: "move", label: "Move", hint: "Drag a point or polygon" },
+  { mode: "delete", label: "Delete", hint: "Click an object to remove it" }
 ] as const;
 
 export const EditorToolbar = ({
@@ -52,128 +33,75 @@ export const EditorToolbar = ({
   onCancelDraft
 }: EditorToolbarProps) => {
   const isDrafting = mode === "polygon" && draftVertexCount > 0;
-  const activeTool = tools.find((tool) => tool.mode === mode) ?? tools[0];
+  const activeTool = tools.find((tool) => tool.mode === mode)!;
 
   return (
-    <ToolbarSurface data-testid="toolbar-surface">
-      <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
-        <ToolGroup
-          exclusive
-          value={mode}
-          aria-label="Drawing tools"
-          onChange={(_, nextMode) => nextMode && onModeChange(nextMode)}
-        >
-          {tools.map(({ mode, label, Icon }) => (
-            <ToggleButton key={mode} value={mode} aria-label={label}>
-              <Icon fontSize="small" aria-hidden="true" />
+    <section className="toolbar">
+      <div className="toolbar-row">
+        <div className="toolbar-group" role="group" aria-label="Drawing tools">
+          {tools.map(({ mode, label }) => (
+            <button
+              key={mode}
+              type="button"
+              className={`tool-button${activeTool.mode === mode ? " is-active" : ""}`}
+              aria-pressed={activeTool.mode === mode}
+              onClick={() => onModeChange(mode)}
+            >
               {label}
-            </ToggleButton>
+            </button>
           ))}
-        </ToolGroup>
+        </div>
 
-        <ButtonGroupSurface aria-label="History controls">
-          <Button
+        <div className="toolbar-group" role="group" aria-label="History controls">
+          <button
             type="button"
-            variant="text"
-            color="secondary"
-            startIcon={<UndoRounded />}
+            className="command-button"
             onClick={onUndo}
             disabled={!canUndo}
             aria-label="Undo"
           >
             Undo
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="text"
-            color="secondary"
-            startIcon={<RedoRounded />}
+            className="command-button"
             onClick={onRedo}
             disabled={!canRedo}
             aria-label="Redo"
           >
             Redo
-          </Button>
-        </ButtonGroupSurface>
+          </button>
+        </div>
 
         {isDrafting && (
-          <DraftControls>
-            <Chip
-              size="small"
-              label={`${draftVertexCount} ${draftVertexCount === 1 ? "vertex" : "vertices"}`}
-            />
-            <Button
+          <div className="toolbar-group draft-controls">
+            <span className="count-chip">
+              {draftVertexCount} {draftVertexCount === 1 ? "vertex" : "vertices"}
+            </span>
+            <button
               type="button"
-              variant="contained"
-              startIcon={<CheckRounded />}
+              className="primary-button"
               onClick={onComplete}
               disabled={!canCompletePolygon}
               aria-label="Complete"
             >
               Complete
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="text"
-              color="secondary"
-              startIcon={<CloseRounded />}
+              className="command-button"
               onClick={onCancelDraft}
               aria-label="Cancel"
             >
               Cancel
-            </Button>
-          </DraftControls>
+            </button>
+          </div>
         )}
-      </Stack>
+      </div>
 
-      <Typography color="text.secondary" fontSize={14} aria-live="polite">
+      <p className="toolbar-hint" aria-live="polite">
         {isDrafting ? "Keep clicking to add vertices." : activeTool.hint}
-      </Typography>
-    </ToolbarSurface>
+      </p>
+    </section>
   );
 };
-
-const ToolbarSurface = styled(Box)(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  gap: theme.spacing(2),
-  padding: theme.spacing(1.25, 0)
-}));
-
-const ToolGroup = styled(ToggleButtonGroup)(({ theme }) => ({
-  display: "flex",
-  flexWrap: "wrap",
-  gap: theme.spacing(0.5),
-  padding: theme.spacing(0.5),
-  maxWidth: "100%",
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper,
-  "& .MuiToggleButtonGroup-grouped": {
-    margin: 0,
-    borderRadius: theme.shape.borderRadius
-  }
-}));
-
-const ButtonGroupSurface = styled(Box)(({ theme }) => ({
-  display: "flex",
-  flexWrap: "wrap",
-  alignItems: "center",
-  gap: theme.spacing(0.5),
-  maxWidth: "100%",
-  padding: theme.spacing(0.5),
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper
-}));
-
-const DraftControls = styled(ButtonGroupSurface)(({ theme }) => ({
-  borderColor: alpha(theme.palette.primary.main, 0.28),
-  backgroundColor: alpha(theme.palette.primary.main, 0.04),
-  "& .MuiChip-root": {
-    height: toolbarControlHeight,
-    borderRadius: theme.shape.borderRadius,
-    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-    color: theme.palette.text.secondary
-  }
-}));

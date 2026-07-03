@@ -1,5 +1,3 @@
-import { Box, Stack, Typography } from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { type PointerEvent, useState } from "react";
 import { EditorCanvas } from "./editor/EditorCanvas";
 import { EditorToolbar } from "./editor/EditorToolbar";
@@ -37,26 +35,24 @@ const App = () => {
   const [state, setState] = useState<EditorState>(() => createInitialEditorState());
   const [drag, setDrag] = useState<DragState | null>(null);
   const [draftCursor, setDraftCursor] = useState<Point | null>(null);
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
 
   const previewObjects = getPreviewObjects(state.objects, drag);
   const activeDragObjectId = drag?.objectId ?? null;
 
-  function getDocumentPoint(event: PointerEvent<SVGSVGElement>): Point {
+  const getDocumentPoint = (event: PointerEvent<SVGSVGElement>): Point => {
     const rect = event.currentTarget.getBoundingClientRect();
     return clientPointToDocumentPoint(rect, { x: event.clientX, y: event.clientY });
-  }
+  };
 
-  function handleModeChange(mode: EditorMode) {
+  const handleModeChange = (mode: EditorMode) => {
     setDrag(null);
     setDraftCursor(null);
-    setSelectedObjectId(null);
     setHoveredObjectId(null);
     setState((current) => changeMode(current, mode));
-  }
+  };
 
-  function handleCanvasPointerDown(event: PointerEvent<SVGSVGElement>) {
+  const handleCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
     const point = getDocumentPoint(event);
 
     if (state.mode === "point") {
@@ -72,14 +68,12 @@ const App = () => {
 
     if (state.mode === "delete") {
       setState((current) => deleteObjectAt(current, point));
-      setSelectedObjectId(null);
       setHoveredObjectId(null);
       return;
     }
 
     const hit = hitTest(state.objects, point);
     if (!hit) {
-      setSelectedObjectId(null);
       setHoveredObjectId(null);
       return;
     }
@@ -90,10 +84,9 @@ const App = () => {
       start: point,
       current: point
     });
-    setSelectedObjectId(hit.id);
-  }
+  };
 
-  function handleCanvasPointerMove(event: PointerEvent<SVGSVGElement>) {
+  const handleCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const point = getDocumentPoint(event);
 
     if (drag) {
@@ -110,9 +103,9 @@ const App = () => {
       const hit = hitTest(state.objects, point);
       setHoveredObjectId((current) => (current === (hit?.id ?? null) ? current : hit?.id ?? null));
     }
-  }
+  };
 
-  function handleCanvasPointerUp(event: PointerEvent<SVGSVGElement>) {
+  const handleCanvasPointerUp = (event: PointerEvent<SVGSVGElement>) => {
     if (!drag) {
       return;
     }
@@ -120,23 +113,21 @@ const App = () => {
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     const delta = getDragDelta(drag);
     setState((current) => moveObject(current, drag.objectId, delta));
-    setSelectedObjectId(null);
     setHoveredObjectId(null);
     setDrag(null);
-  }
+  };
 
-  function handleCanvasPointerCancel(event: PointerEvent<SVGSVGElement>) {
+  const handleCanvasPointerCancel = (event: PointerEvent<SVGSVGElement>) => {
     if (!drag) {
       return;
     }
 
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    setSelectedObjectId(null);
     setHoveredObjectId(null);
     setDrag(null);
-  }
+  };
 
-  function handleCanvasPointerLeave() {
+  const handleCanvasPointerLeave = () => {
     if (state.mode === "polygon") {
       setDraftCursor(null);
     }
@@ -144,42 +135,38 @@ const App = () => {
     if (!drag && hoveredObjectId) {
       setHoveredObjectId(null);
     }
-  }
+  };
 
-  function handleUndo() {
+  const handleUndo = () => {
     setDrag(null);
     setDraftCursor(null);
-    setSelectedObjectId(null);
     setHoveredObjectId(null);
     setState((current) => undo(current));
-  }
+  };
 
-  function handleRedo() {
+  const handleRedo = () => {
     setDrag(null);
     setDraftCursor(null);
-    setSelectedObjectId(null);
     setHoveredObjectId(null);
     setState((current) => redo(current));
-  }
+  };
 
-  function handleComplete() {
+  const handleComplete = () => {
     setDraftCursor(null);
     setState((current) => completePolygon(current));
-  }
+  };
 
-  function handleCancelDraft() {
+  const handleCancelDraft = () => {
     setDraftCursor(null);
     setState((current) => cancelDraft(current));
-  }
+  };
 
   return (
-    <AppShell>
-      <Stack component="header" spacing={0.5}>
-        <Typography variant="h1">Interactive Vector Editor</Typography>
-        <Typography color="text.secondary" fontSize={14}>
-          {appSubtitle}
-        </Typography>
-      </Stack>
+    <main className="app-shell">
+      <header className="app-header">
+        <h1>Interactive Vector Editor</h1>
+        <p>{appSubtitle}</p>
+      </header>
 
       <EditorToolbar
         mode={state.mode}
@@ -200,7 +187,6 @@ const App = () => {
         objects={previewObjects}
         draftPolygon={state.draftPolygon}
         draftCursor={draftCursor}
-        selectedObjectId={selectedObjectId}
         activeDragObjectId={activeDragObjectId}
         hoveredObjectId={hoveredObjectId}
         onPointerDown={handleCanvasPointerDown}
@@ -209,37 +195,24 @@ const App = () => {
         onPointerCancel={handleCanvasPointerCancel}
         onPointerLeave={handleCanvasPointerLeave}
       />
-    </AppShell>
+    </main>
   );
 };
 
 export default App;
 
-function getPreviewObjects(objects: GeometryObject[], drag: DragState | null): GeometryObject[] {
+const getPreviewObjects = (objects: GeometryObject[], drag: DragState | null): GeometryObject[] => {
   if (!drag) {
     return objects;
   }
 
   const delta = getDragDelta(drag);
   return objects.map((object) => (object.id === drag.objectId ? translateObject(object, delta) : object));
-}
+};
 
-function getDragDelta(drag: DragState): Point {
+const getDragDelta = (drag: DragState): Point => {
   return {
     x: drag.current.x - drag.start.x,
     y: drag.current.y - drag.start.y
   };
-}
-
-const AppShell = styled(Box)(({ theme }) => ({
-  minHeight: "100vh",
-  display: "flex",
-  flexDirection: "column",
-  gap: theme.spacing(2.5),
-  maxWidth: 1024,
-  margin: "0 auto",
-  padding: theme.spacing(5, 2),
-  [theme.breakpoints.down("sm")]: {
-    padding: theme.spacing(3, 2)
-  }
-}));
+};
