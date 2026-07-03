@@ -16,6 +16,7 @@ import {
   startPolygonVertex,
   undo
 } from "./editorModel";
+import type { EditorState, Point } from "./editorModel";
 
 describe("editor model", () => {
   it("creates points at document coordinates and records undoable history", () => {
@@ -122,6 +123,27 @@ describe("editor model", () => {
     });
   });
 
+  it("leaves history untouched for incomplete or missed actions", () => {
+    let state = createInitialEditorState();
+
+    expect(completePolygon(state)).toBe(state);
+    expect(moveObject(state, "missing-object", { x: 12, y: 8 })).toBe(state);
+    expect(deleteObjectAt(state, { x: 400, y: 400 })).toBe(state);
+    expect(state.undoStack).toHaveLength(0);
+    expect(state.redoStack).toHaveLength(0);
+
+    state = createPoint(state, { x: 25, y: 25 });
+    const historyLength = state.undoStack.length;
+
+    expect(moveObject(state, "point-1", { x: 0, y: 0 })).toBe(state);
+    expect(deleteObjectAt(state, { x: 300, y: 300 })).toBe(state);
+    expect(state.objects).toEqual([
+      { id: "point-1", type: "point", position: { x: 25, y: 25 } }
+    ]);
+    expect(state.undoStack).toHaveLength(historyLength);
+    expect(state.redoStack).toHaveLength(0);
+  });
+
   it("deletes points and polygons through shared hit-test precedence", () => {
     let state = createInitialEditorState();
     state = createPoint(state, { x: 50, y: 50 });
@@ -144,6 +166,72 @@ describe("editor model", () => {
     expect(state.objects.map((object) => object.id)).toEqual(["point-1"]);
   });
 
+  it("restores deleted objects at their original layer index", () => {
+    let state = createInitialEditorState();
+    state = createPoint(state, { x: 20, y: 20 });
+    state = createPoint(state, { x: 80, y: 80 });
+    state = createPoint(state, { x: 140, y: 140 });
+
+    state = deleteObjectAt(state, { x: 80, y: 80 });
+    expect(state.objects.map((object) => object.id)).toEqual(["point-1", "point-3"]);
+
+    state = undo(state);
+    expect(state.objects.map((object) => object.id)).toEqual(["point-1", "point-2", "point-3"]);
+
+    state = redo(state);
+    expect(state.objects.map((object) => object.id)).toEqual(["point-1", "point-3"]);
+  });
+
+  it("replays multiple redo actions in the order they were undone", () => {
+    let state = createInitialEditorState();
+    state = createPoint(state, { x: 10, y: 10 });
+    state = createPoint(state, { x: 40, y: 40 });
+    state = moveObject(state, "point-1", { x: 10, y: 0 });
+    state = moveObject(state, "point-2", { x: 0, y: 10 });
+
+    state = undo(state);
+    state = undo(state);
+    expect(state.objects).toEqual([
+      { id: "point-1", type: "point", position: { x: 10, y: 10 } },
+      { id: "point-2", type: "point", position: { x: 40, y: 40 } }
+    ]);
+
+    state = redo(state);
+    expect(state.objects).toEqual([
+      { id: "point-1", type: "point", position: { x: 20, y: 10 } },
+      { id: "point-2", type: "point", position: { x: 40, y: 40 } }
+    ]);
+
+    state = redo(state);
+    expect(state.objects).toEqual([
+      { id: "point-1", type: "point", position: { x: 20, y: 10 } },
+      { id: "point-2", type: "point", position: { x: 40, y: 50 } }
+    ]);
+  });
+
+  it("hit-tests topmost objects within each geometry type", () => {
+    let state = createInitialEditorState();
+    state = completeDraftPolygon(state, [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 }
+    ]);
+    state = completeDraftPolygon(state, [
+      { x: 20, y: 20 },
+      { x: 120, y: 20 },
+      { x: 120, y: 120 },
+      { x: 20, y: 120 }
+    ]);
+
+    expect(hitTest(state.objects, { x: 60, y: 60 })?.id).toBe("polygon-2");
+
+    state = createPoint(state, { x: 60, y: 60 });
+    state = createPoint(state, { x: 60, y: 60 });
+
+    expect(hitTest(state.objects, { x: 60, y: 60 })?.id).toBe("point-2");
+  });
+
   it("clears redo history after a new completed action follows undo", () => {
     let state = createInitialEditorState();
     state = createPoint(state, { x: 10, y: 10 });
@@ -158,19 +246,35 @@ describe("editor model", () => {
   });
 
   it("converts browser pointer coordinates into SVG document coordinates", () => {
-    const point = clientPointToDocumentPoint(
-      {
-        left: 50,
-        top: 20,
-        width: 500,
-        height: 320
-      },
-      { x: 300, y: 180 }
-    );
+    const rect = {
+      left: 50,
+      top: 20,
+      width: 500,
+      height: 320
+    };
+    const point = clientPointToDocumentPoint(rect, { x: 300, y: 180 });
 
     expect(point).toEqual({
       x: CANVAS_WIDTH / 2,
       y: CANVAS_HEIGHT / 2
     });
+    expect(clientPointToDocumentPoint(rect, { x: -50, y: -80 })).toEqual({
+      x: 0,
+      y: 0
+    });
+    expect(clientPointToDocumentPoint(rect, { x: 700, y: 500 })).toEqual({
+      x: CANVAS_WIDTH,
+      y: CANVAS_HEIGHT
+    });
   });
 });
+
+function completeDraftPolygon(state: EditorState, vertices: Point[]): EditorState {
+  let nextState = changeMode(state, "polygon");
+
+  for (const vertex of vertices) {
+    nextState = startPolygonVertex(nextState, vertex);
+  }
+
+  return completePolygon(nextState);
+}
