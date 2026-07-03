@@ -299,4 +299,4 @@ The current design system deliberately does not include:
 - Advanced drawing tools.
 - Export UI.
 
-These remain out of scope for the minimum-spec assignment unless the product requirements change.
+These remain out of scope for the minimum-spec project unless the product requirements change.

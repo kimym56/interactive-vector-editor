@@ -267,7 +267,6 @@ For a compressed archive:
 For a public GitHub repository:
 
 - Use a generic repository name such as `vector-editor-challenge` or `interactive-canvas-tool`.
-- Do not include confidential company names or the words `Assessment`, `Assignment`, `Interview`, or `Test` in the repository name, description, or root README.
 
 ## 14. UX Notes
 
